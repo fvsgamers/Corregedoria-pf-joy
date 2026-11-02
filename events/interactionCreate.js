@@ -45,48 +45,60 @@ module.exports = {
             }
         }
 
-        // --- 2. INTERAÇÃO COM BOTÕES ---
-        if (interaction.isButton()) {
-            const { guild, user, customId, channelId } = interaction;
-        // ==========================================
-        // BOTÃO: Iniciar o processo de fechamento do chamado
-        // ==========================================
-        if (customId === 'btn_fechar_ticket') {
-            // Verifica se o usuário tem algum dos IDs das listas de Corregedor ou Staff, ou se é Administrador
-            const temAcesso = config.idCargoCorregedor.some(id => interaction.member.roles.cache.has(id)) || 
-                              config.idCargoStaff.some(id => interaction.member.roles.cache.has(id)) || 
-                              interaction.member.permissions.has(PermissionFlagsBits.Administrator);
-        
-            if (!temAcesso) {
-                return interaction.reply({ content: "❌ Apenas membros da Corregedoria ou Staff podem definir o veredicto deste caso.", ephemeral: true });
-            }
-            
-            // BOTÃO: Iniciar o processo de fechamento do chamado
-            if (customId === 'btn_fechar_ticket') {
-                // Verifica se o usuário tem algum dos IDs das listas de Corregedor ou Staff, ou se é Administrador
-                const temAcesso = config.idCargoCorregedor.some(id => interaction.member.roles.cache.has(id)) || 
-                                  config.idCargoStaff.some(id => interaction.member.roles.cache.has(id)) || 
-                                  interaction.member.permissions.has(PermissionFlagsBits.Administrator);
-            
-                if (!temAcesso) {
-                    return interaction.reply({ content: "❌ Apenas membros da Corregedoria ou Staff podem definir o veredicto deste caso.", ephemeral: true });
-                }
-            
-                const embedFiltro = new EmbedBuilder()
-                    .setTitle("👤 SELEÇÃO DE ENVOLVIDOS")
-                    .setDescription("Selecione abaixo o(s) usuário(s) que receberá(ão) o veredicto deste caso. Você pode marcar mais de um se necessário:")
-                    .setColor(0x2f3136);
-            
-                const menuUsuarios = new UserSelectMenuBuilder()
-                    .setCustomId('selecao_membros_caso')
-                    .setPlaceholder('Clique aqui para selecionar os envolvidos...')
-                    .setMinValues(1)
-                    .setMaxValues(10);
-            
-                const rowUsuarios = new ActionRowBuilder().addComponents(menuUsuarios);
-            
-                return interaction.reply({ embeds: [embedFiltro], components: [rowUsuarios] });
-            }
+       // --- 2. INTERAÇÃO COM BOTÕES ---
+if (interaction.isButton()) {
+    const { guild, user, customId, channelId } = interaction;
+
+    // ==========================================
+    // BOTÃO: CITAR ENVOLVIDOS (Abertura de denúncia)
+    // ==========================================
+    if (customId === 'btn_citar_envolvidos') {
+        const menuCitarUsuarios = new UserSelectMenuBuilder()
+            .setCustomId('menu_citacao_abertura')
+            .setPlaceholder('Selecione os membros que serão citados na denúncia...')
+            .setMinValues(1)
+            .setMaxValues(10);
+
+        const rowMenu = new ActionRowBuilder().addComponents(menuCitarUsuarios);
+
+        return interaction.reply({ 
+            content: '👇 **Selecione abaixo os usuários envolvidos para realizar a citação:**', 
+            components: [rowMenu], 
+            ephemeral: true 
+        });
+    }
+
+    // ==========================================
+    // BOTÃO: Iniciar o processo de fechamento do chamado
+    // ==========================================
+    if (customId === 'btn_fechar_ticket') {
+        // Verifica se o usuário tem algum dos IDs das listas de Corregedor ou Staff, ou se é Administrador
+        const temAcesso = config.idCargoCorregedor.some(id => interaction.member.roles.cache.has(id)) || 
+                          config.idCargoStaff.some(id => interaction.member.roles.cache.has(id)) || 
+                          interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+    
+        if (!temAcesso) {
+            return interaction.reply({ content: "❌ Apenas membros da Corregedoria ou Staff podem definir o veredicto deste caso.", ephemeral: true });
+        }
+
+        // --- DAQUI PARA BAIXO SEGUE O RESTO DO SEU CÓDIGO DO FECHAR TICKET ---
+        const embedFiltro = new EmbedBuilder()
+            .setTitle("👤 SELEÇÃO DE ENVOLVIDOS")
+            .setDescription("Selecione abaixo o(s) usuário(s) que receberá(ão) o veredicto deste caso. Você pode marcar mais de um se necessário:")
+            .setColor(0x2f3136);
+
+        const menuUsuarios = new UserSelectMenuBuilder()
+            .setCustomId('selecao_membros_caso')
+            .setPlaceholder('Clique aqui para selecionar os envolvidos...')
+            .setMinValues(1)
+            .setMaxValues(10);
+
+        const rowUsuarios = new ActionRowBuilder().addComponents(menuUsuarios);
+
+        return interaction.reply({ embeds: [embedFiltro], components: [rowUsuarios] });
+    } // <- Fecha o if (customId === 'btn_fechar_ticket')
+} // <- Fecha o if (interaction.isButton())
+
 
            // BOTÃO: Veredicto Deferido (Abre seleção de advertências)
             if (customId === 'btn_final_deferido') {
