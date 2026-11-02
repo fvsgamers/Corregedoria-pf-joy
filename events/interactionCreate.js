@@ -257,10 +257,10 @@ module.exports = {
                 const ID_CANAL_TRANSCRIPTS = "1565194110199930971";
 
                 const dicionarioAdvs = {
-                    "1511367174307188866": "Advertência Verbal (Ficha sob análise técnica, sujeito a desligamento imediato)",
-                    "1394767944176631969": "Advertência Escrita Nível 1 (Vigência obrigatória: 15 dias corridos)",
-                    "1394767901218836521": "Advertência Geral Nível 2 (Vigência obrigatória: 10 dias corridos)",
-                    "1394767862174060705": "Suspensão de Atividades Administrativas (Afastamento compulsório: 7 dias)"
+                    "1394767862174060705": "Advertência Verbal (Vigência Obrigatória: 7 dias)",
+                    "1394767901218836521": "Advertência Escrita Nível 1 (Vigência obrigatória: 10 dias corridos)",
+                    "1394767944176631969": "Advertência Geral Nível 2 (Vigência obrigatória: 15 dias corridos)",
+                    "1511367174307188866": "Suspensão de Atividades Administrativas (Ficha sob análise técnica, sujeito a desligamento imediato)"
                 };
 
                 const textoAdvsMarcadas = values.map(id => `• ${dicionarioAdvs[id] || id}`).join('\n');
