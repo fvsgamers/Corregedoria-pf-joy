@@ -48,25 +48,6 @@ module.exports = {
         // --- 2. INTERAÇÃO COM BOTÕES ---
         if (interaction.isButton()) {
             const { guild, user, customId, channelId } = interaction;
-
-            if (customId === 'btn_citar_envolvidos') {
-        // Cria o menu de seleção de usuários do Discord
-        const menuCitarUsuarios = new UserSelectMenuBuilder()
-                .setCustomId('menu_citacao_abertura')
-                .setPlaceholder('Selecione os membros que serão citados na denúncia...')
-                .setMinValues(1)
-                .setMaxValues(10); // Permite selecionar até 10 pessoas de uma vez
-    
-            const rowMenu = new ActionRowBuilder().addComponents(menuCitarUsuarios);
-    
-            // Envia o menu apenas para quem clicou (ephemeral) para não poluir o canal
-            return interaction.reply({ 
-                content: '👇 **Selecione abaixo os usuários envolvidos para realizar a citação:**', 
-                components: [rowMenu], 
-                ephemeral: true 
-            });
-        }
-           
         // ==========================================
         // BOTÃO: Iniciar o processo de fechamento do chamado
         // ==========================================
