@@ -1,6 +1,35 @@
 {
   "clientId": "1565123232133156914",
   "guildId": "1394735325858762773",
+  
   "idCargoCorregedor": ["1511368554648441013", "1511368314268418188", "1394761227858739431"],
-  "idCargoStaff": ["1511368314268418188"]
+  
+  "idCargoStaff": ["1511368314268418188"],
+   
+  "opcoesPunicao": [
+    { 
+      "label": "Advertência Verbal", 
+      "description": "Aplicação de aviso verbal regulamentar.", 
+      "value": "1394767862174060705",
+      "emoji": "💬"
+    },
+    { 
+      "label": "Advertência Escrita Nível 1", 
+      "description": "Primeiro aviso formal registrado em ficha funcional.", 
+      "value": "1394767901218836521",
+      "emoji": "📝"
+    },
+    { 
+      "label": "Advertência Geral Nível 2", 
+      "description": "Sanção por reincidência formal de conduta.", 
+      "value": "1394767944176631969",
+      "emoji": "⚠️"
+    },
+    { 
+      "label": "Suspensão Administrativa", 
+      "description": "Afastamento imediato e temporário das funções.", 
+      "value": "1511367174307188866",
+      "emoji": "🚫"
+    }
+  ]
 }
