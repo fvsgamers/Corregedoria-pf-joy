@@ -292,10 +292,26 @@ module.exports = {
                         `*Determina-se a averbação imediata deste veredicto na ficha funcional do servidor. Notificação processual expedida.*\n\n` +
                         `✍️ *Relator Responsável:* \`${interaction.user.tag}\` — <t:${Math.floor(Date.now() / 1000)}:R>`;
                 
-                    // Envia o texto formatado diretamente no canal de resultados com a citação inicial
+                    // Envia o texto formatado diretamente no canal de resultados
                     await canalResultados.send({ 
                         content: `🔔 **Citação Processual:** <@${idMembro}>\n\n${textoMensagem}` 
                     });
+                
+                    // 3. ENVIO DO FORMATO SIMPLIFICADO PARA O CANAL DE LOGS ESPECÍFICO
+                    try {
+                        const canalLogsEspecifico = await guild.channels.fetch('1529134407330562239').catch(() => null);
+                        if (canalLogsEspecifico) {
+                            const textoLogSimplificado = 
+                                `**QRA:** <@${idMembro}>\n` +
+                                `**MOTIVO:** Caso corregedoria #${numeroFinalDoCaso}\n` +
+                                `**ADVERTÊNCIA APLICADA:** ${textoAdvsMarcadas}\n` +
+                                `**RESPONSÁVEL:** ${interaction.user}`;
+                
+                            await canalLogsEspecifico.send({ content: textoLogSimplificado });
+                        }
+                    } catch (err) {
+                        console.error("Erro ao enviar mensagem para o canal de logs específico:", err);
+                    }
                 }
                 
                 // 3. GERADOR NATIVO DE TRANSCRIPT (EXPORTAÇÃO DE CONVERSA)
