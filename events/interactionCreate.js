@@ -76,6 +76,9 @@ module.exports = {
           // ==========================================
     // BOTÃO: Iniciar o processo de fechamento do chamado
     // ==========================================
+    // ==========================================
+    // BOTÃO: Iniciar o processo de fechamento do chamado
+    // ==========================================
     if (customId === 'btn_fechar_ticket') {
         // Verifica se o usuário tem algum dos IDs das listas de Corregedor ou Staff, ou se é Administrador
         const temAcesso = config.idCargoCorregedor.some(id => interaction.member.roles.cache.has(id)) || 
@@ -86,7 +89,6 @@ module.exports = {
             return interaction.reply({ content: "❌ Apenas membros da Corregedoria ou Staff podem definir o veredicto deste caso.", ephemeral: true });
         }
 
-        // --- DAQUI PARA BAIXO SEGUE O RESTO DO SEU CÓDIGO DO FECHAR TICKET ---
         const embedFiltro = new EmbedBuilder()
             .setTitle("👤 SELEÇÃO DE ENVOLVIDOS")
             .setDescription("Selecione abaixo o(s) usuário(s) que receberá(ão) o veredicto deste caso. Você pode marcar mais de um se necessário:")
@@ -101,9 +103,7 @@ module.exports = {
         const rowUsuarios = new ActionRowBuilder().addComponents(menuUsuarios);
 
         return interaction.reply({ embeds: [embedFiltro], components: [rowUsuarios] });
-    } // <- Fecha o if (customId === 'btn_fechar_ticket')
-} // <- Fecha o if (interaction.isButton())
-
+    } // <- SÓ FECHA O BOTÃO. O resto dos seus botões originais pode seguir normalmente abaixo.
 
            // BOTÃO: Veredicto Deferido (Abre seleção de advertências)
             if (customId === 'btn_final_deferido') {
