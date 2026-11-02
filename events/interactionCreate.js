@@ -44,80 +44,73 @@ module.exports = {
                 await interaction.reply({ content: 'Houve um erro ao executar esse comando!', ephemeral: true });
             }
         }
-    if (interaction.isButton()) {
-            const { guild, user, customId, channelId } = interaction;
-            // No painel inicial do ticket ou onde você cria os botões principais:
-            const btnCitar = new ButtonBuilder()
-                .setCustomId('btn_citar_envolvidos')
-                .setLabel('Citar Envolvidos')
-                .setEmoji('👤')
-                .setStyle(ButtonStyle.Primary);
+            // --- INTERAÇÃO COM BOTÕES ---
+            if (interaction.isButton()) {
+                const { guild, user, customId, channelId } = interaction;
             
-            // ---------------------------------------------------------
+                // ==========================================
+                // BOTÃO: CITAR ENVOLVIDOS (Abertura de denúncia)
+                // ==========================================
+                if (customId === 'btn_citar_envolvidos') {
+                    const menuCitarUsuarios = new UserSelectMenuBuilder()
+                        .setCustomId('menu_citacao_abertura')
+                        .setPlaceholder('Selecione os membros que serão citados na denúncia...')
+                        .setMinValues(1)
+                        .setMaxValues(10);
             
-            // Na checagem dos botões (dentro do seu evento de interação):
-            if (customId === 'btn_citar_envolvidos') {
-                // Cria o menu de seleção de usuários do Discord
-                const menuCitarUsuarios = new UserSelectMenuBuilder()
-                    .setCustomId('menu_citacao_abertura')
-                    .setPlaceholder('Selecione os membros que serão citados na denúncia...')
-                    .setMinValues(1)
-                    .setMaxValues(10); // Permite citar até 10 pessoas de uma vez
+                    const rowMenu = new ActionRowBuilder().addComponents(menuCitarUsuarios);
             
-                const rowMenu = new ActionRowBuilder().addComponents(menuCitarUsuarios);
+                    return interaction.reply({ 
+                        content: '👇 **Selecione abaixo os usuários envolvidos para realizar a citação:**', 
+                        components: [rowMenu], 
+                        ephemeral: true 
+                    }).catch(err => console.error("Erro ao abrir menu de citar:", err));
+                }
             
-                // Envia o menu apenas para quem clicou (ephemeral) para não poluir o canal
-                return interaction.reply({ 
-                    content: '👇 **Selecione abaixo os usuários envolvidos para realizar a citação:**', 
-                    components: [rowMenu], 
-                    ephemeral: true 
-                });
+                // ==========================================
+                // BOTÃO: Iniciar o processo de fechamento do chamado
+                // ==========================================
+                if (customId === 'btn_fechar_ticket') {
+                    // Verifica se o usuário tem algum dos IDs das listas de Corregedor ou Staff, ou se é Administrador
+                    const temAcesso = config.idCargoCorregedor.some(id => interaction.member.roles.cache.has(id)) || 
+                                      config.idCargoStaff.some(id => interaction.member.roles.cache.has(id)) || 
+                                      interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+                
+                    if (!temAcesso) {
+                        return interaction.reply({ content: "❌ Apenas membros da Corregedoria ou Staff podem definir o veredicto deste caso.", ephemeral: true });
+                    }
+            
+                    const embedFiltro = new EmbedBuilder()
+                        .setTitle("👤 SELEÇÃO DE ENVOLVIDOS")
+                        .setDescription("Selecione abaixo o(s) usuário(s) que receberá(ão) o veredicto deste caso. Você pode marcar mais de um se necessário:")
+                        .setColor(0x2f3136);
+            
+                    const menuUsuarios = new UserSelectMenuBuilder()
+                        .setCustomId('selecao_membros_caso')
+                        .setPlaceholder('Clique aqui para selecionar os envolvidos...')
+                        .setMinValues(1)
+                        .setMaxValues(10);
+            
+                    const rowUsuarios = new ActionRowBuilder().addComponents(menuUsuarios);
+            
+                    return interaction.reply({ embeds: [embedFiltro], components: [rowUsuarios] });
+                }
+            
+                // ==========================================
+                // BOTÃO: Veredicto Deferido (Abre seleção de advertências puxando do JSON)
+                // ==========================================
+                if (customId === 'btn_final_deferido') {
+                    const menuAdvs = new StringSelectMenuBuilder()
+                        .setCustomId('menu_advertencias_multiplas')
+                        .setPlaceholder('Selecione uma ou mais advertências...')
+                        .setMinValues(1)
+                        .setMaxValues(config.opcoesPunicao.length)
+                        .addOptions(config.opcoesPunicao);
+            
+                    const rowAdvs = new ActionRowBuilder().addComponents(menuAdvs);
+                    return interaction.update({ content: '🚨 **Selecione as punições aplicáveis abaixo:**', embeds: [], components: [rowAdvs] });
+                }
             }
-          // ==========================================
-    // BOTÃO: Iniciar o processo de fechamento do chamado
-    // ==========================================
-    // ==========================================
-    // BOTÃO: Iniciar o processo de fechamento do chamado
-    // ==========================================
-    if (customId === 'btn_fechar_ticket') {
-        // Verifica se o usuário tem algum dos IDs das listas de Corregedor ou Staff, ou se é Administrador
-        const temAcesso = config.idCargoCorregedor.some(id => interaction.member.roles.cache.has(id)) || 
-                          config.idCargoStaff.some(id => interaction.member.roles.cache.has(id)) || 
-                          interaction.member.permissions.has(PermissionFlagsBits.Administrator);
-    
-        if (!temAcesso) {
-            return interaction.reply({ content: "❌ Apenas membros da Corregedoria ou Staff podem definir o veredicto deste caso.", ephemeral: true });
-        }
-
-        const embedFiltro = new EmbedBuilder()
-            .setTitle("👤 SELEÇÃO DE ENVOLVIDOS")
-            .setDescription("Selecione abaixo o(s) usuário(s) que receberá(ão) o veredicto deste caso. Você pode marcar mais de um se necessário:")
-            .setColor(0x2f3136);
-
-        const menuUsuarios = new UserSelectMenuBuilder()
-            .setCustomId('selecao_membros_caso')
-            .setPlaceholder('Clique aqui para selecionar os envolvidos...')
-            .setMinValues(1)
-            .setMaxValues(10);
-
-        const rowUsuarios = new ActionRowBuilder().addComponents(menuUsuarios);
-
-        return interaction.reply({ embeds: [embedFiltro], components: [rowUsuarios] });
-    } // <- SÓ FECHA O BOTÃO. O resto dos seus botões originais pode seguir normalmente abaixo.
-
-           // BOTÃO: Veredicto Deferido (Abre seleção de advertências)
-            if (customId === 'btn_final_deferido') {
-                const menuAdvs = new StringSelectMenuBuilder()
-                    .setCustomId('menu_advertencias_multiplas')
-                    .setPlaceholder('Selecione uma ou mais advertências...')
-                    .setMinValues(1)
-                    .setMaxValues(config.opcoesPunicao.length) // Ajusta dinamicamente o máximo para o total de opções no JSON
-                    .addOptions(config.opcoesPunicao);
-            
-                const rowAdvs = new ActionRowBuilder().addComponents(menuAdvs);
-                return interaction.update({ content: '🚨 **Selecione as punições aplicáveis abaixo:**', embeds: [], components: [rowAdvs] });
-            }
-
                         // BOTÃO: Veredicto Indeferido (Texto Elaborado + Transcript + Delete em 10s)
             if (customId === 'btn_final_indeferido') {
                 const dadosCaso = memoriaFechamento.get(channelId);
