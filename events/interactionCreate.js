@@ -48,34 +48,61 @@ module.exports = {
         // --- 2. INTERAÇÃO COM BOTÕES ---
         if (interaction.isButton()) {
             const { guild, user, customId, channelId } = interaction;
-            // No painel inicial do ticket ou onde você cria os botões principais:
-            const btnCitar = new ButtonBuilder()
-                .setCustomId('btn_citar_envolvidos')
-                .setLabel('Citar Envolvidos')
-                .setEmoji('👤')
-                .setStyle(ButtonStyle.Primary);
-            
-            // ---------------------------------------------------------
-            
-            // Na checagem dos botões (dentro do seu evento de interação):
-            if (customId === 'btn_citar_envolvidos') {
-                // Cria o menu de seleção de usuários do Discord
-                const menuCitarUsuarios = new UserSelectMenuBuilder()
-                    .setCustomId('menu_citacao_abertura')
-                    .setPlaceholder('Selecione os membros que serão citados na denúncia...')
-                    .setMinValues(1)
-                    .setMaxValues(10); // Permite citar até 10 pessoas de uma vez
-            
-                const rowMenu = new ActionRowBuilder().addComponents(menuCitarUsuarios);
-            
-                // Envia o menu apenas para quem clicou (ephemeral) para não poluir o canal
-                return interaction.reply({ 
-                    content: '👇 **Selecione abaixo os usuários envolvidos para realizar a citação:**', 
-                    components: [rowMenu], 
-                    ephemeral: true 
-                });
-            }
 
+            if (customId === 'btn_citar_envolvidos') {
+        // Cria o menu de seleção de usuários do Discord
+        const menuCitarUsuarios = new UserSelectMenuBuilder()
+                .setCustomId('menu_citacao_abertura')
+                .setPlaceholder('Selecione os membros que serão citados na denúncia...')
+                .setMinValues(1)
+                .setMaxValues(10); // Permite selecionar até 10 pessoas de uma vez
+    
+            const rowMenu = new ActionRowBuilder().addComponents(menuCitarUsuarios);
+    
+            // Envia o menu apenas para quem clicou (ephemeral) para não poluir o canal
+            return interaction.reply({ 
+                content: '👇 **Selecione abaixo os usuários envolvidos para realizar a citação:**', 
+                components: [rowMenu], 
+                ephemeral: true 
+            });
+        }
+        // BLOCO CITAÇÃO
+        if (interaction.isUserSelectMenu()) {
+    const { customId } = interaction;
+    
+    if (customId === 'menu_citacao_abertura') {
+        const IDsSelecionados = interaction.values; 
+        const listaMencionados = IDsSelecionados.map(id => `<@${id}>`).join(', ');
+
+        const mensagemCitacao = 
+            `### 🔔 Notificação de Citação Processual\n` +
+            `Atenção ${listaMencionados},\n` +
+            `Vocês foram formalmente citados e vinculados como envolvidos na abertura deste protocolo de denúncia (Chamado: ${interaction.channel.name}).\n\n` +
+            `*Aguardem as determinações e a coleta de dados pela Corregedoria Geral. Não respondam sem autorização.*`;
+
+        await interaction.channel.send({ content: mensagemCitacao });
+
+        return interaction.update({ 
+            content: '✅ Os membros envolvidos foram citados com sucesso no canal!', 
+            components: [] 
+        });
+    }
+}
+// FIM BLOCO CITAÇÃO //
+    
+        // ==========================================
+        // BOTÃO: Iniciar o processo de fechamento do chamado
+        // ==========================================
+        if (customId === 'btn_fechar_ticket') {
+            // Verifica se o usuário tem algum dos IDs das listas de Corregedor ou Staff, ou se é Administrador
+            const temAcesso = config.idCargoCorregedor.some(id => interaction.member.roles.cache.has(id)) || 
+                              config.idCargoStaff.some(id => interaction.member.roles.cache.has(id)) || 
+                              interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+        
+            if (!temAcesso) {
+                return interaction.reply({ content: "❌ Apenas membros da Corregedoria ou Staff podem definir o veredicto deste caso.", ephemeral: true });
+            }
+            
             // BOTÃO: Iniciar o processo de fechamento do chamado
             if (customId === 'btn_fechar_ticket') {
                 // Verifica se o usuário tem algum dos IDs das listas de Corregedor ou Staff, ou se é Administrador
