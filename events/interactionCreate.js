@@ -44,12 +44,36 @@ module.exports = {
                 await interaction.reply({ content: 'Houve um erro ao executar esse comando!', ephemeral: true });
             }
         }
-
-       // --- 2. INTERAÇÃO COM BOTÕES ---
-if (interaction.isButton()) {
-    const { guild, user, customId, channelId } = interaction;
-
-    // ==========================================
+    if (interaction.isButton()) {
+            const { guild, user, customId, channelId } = interaction;
+            // No painel inicial do ticket ou onde você cria os botões principais:
+            const btnCitar = new ButtonBuilder()
+                .setCustomId('btn_citar_envolvidos')
+                .setLabel('Citar Envolvidos')
+                .setEmoji('👤')
+                .setStyle(ButtonStyle.Primary);
+            
+            // ---------------------------------------------------------
+            
+            // Na checagem dos botões (dentro do seu evento de interação):
+            if (customId === 'btn_citar_envolvidos') {
+                // Cria o menu de seleção de usuários do Discord
+                const menuCitarUsuarios = new UserSelectMenuBuilder()
+                    .setCustomId('menu_citacao_abertura')
+                    .setPlaceholder('Selecione os membros que serão citados na denúncia...')
+                    .setMinValues(1)
+                    .setMaxValues(10); // Permite citar até 10 pessoas de uma vez
+            
+                const rowMenu = new ActionRowBuilder().addComponents(menuCitarUsuarios);
+            
+                // Envia o menu apenas para quem clicou (ephemeral) para não poluir o canal
+                return interaction.reply({ 
+                    content: '👇 **Selecione abaixo os usuários envolvidos para realizar a citação:**', 
+                    components: [rowMenu], 
+                    ephemeral: true 
+                });
+            }
+          // ==========================================
     // BOTÃO: Iniciar o processo de fechamento do chamado
     // ==========================================
     if (customId === 'btn_fechar_ticket') {
