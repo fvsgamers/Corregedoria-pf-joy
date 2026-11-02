@@ -50,25 +50,6 @@ if (interaction.isButton()) {
     const { guild, user, customId, channelId } = interaction;
 
     // ==========================================
-    // BOTÃO: CITAR ENVOLVIDOS (Abertura de denúncia)
-    // ==========================================
-    if (customId === 'btn_citar_envolvidos') {
-        const menuCitarUsuarios = new UserSelectMenuBuilder()
-            .setCustomId('menu_citacao_abertura')
-            .setPlaceholder('Selecione os membros que serão citados na denúncia...')
-            .setMinValues(1)
-            .setMaxValues(10);
-
-        const rowMenu = new ActionRowBuilder().addComponents(menuCitarUsuarios);
-
-        return interaction.reply({ 
-            content: '👇 **Selecione abaixo os usuários envolvidos para realizar a citação:**', 
-            components: [rowMenu], 
-            ephemeral: true 
-        });
-    }
-
-    // ==========================================
     // BOTÃO: Iniciar o processo de fechamento do chamado
     // ==========================================
     if (customId === 'btn_fechar_ticket') {
