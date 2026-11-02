@@ -66,30 +66,7 @@ module.exports = {
                 ephemeral: true 
             });
         }
-        // BLOCO CITAÇÃO
-        if (interaction.isUserSelectMenu()) {
-    const { customId } = interaction;
-    
-    if (customId === 'menu_citacao_abertura') {
-        const IDsSelecionados = interaction.values; 
-        const listaMencionados = IDsSelecionados.map(id => `<@${id}>`).join(', ');
-
-        const mensagemCitacao = 
-            `### 🔔 Notificação de Citação Processual\n` +
-            `Atenção ${listaMencionados},\n` +
-            `Vocês foram formalmente citados e vinculados como envolvidos na abertura deste protocolo de denúncia (Chamado: ${interaction.channel.name}).\n\n` +
-            `*Aguardem as determinações e a coleta de dados pela Corregedoria Geral. Não respondam sem autorização.*`;
-
-        await interaction.channel.send({ content: mensagemCitacao });
-
-        return interaction.update({ 
-            content: '✅ Os membros envolvidos foram citados com sucesso no canal!', 
-            components: [] 
-        });
-    }
-}
-// FIM BLOCO CITAÇÃO //
-    
+           
         // ==========================================
         // BOTÃO: Iniciar o processo de fechamento do chamado
         // ==========================================
