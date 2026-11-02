@@ -282,38 +282,45 @@ module.exports = {
                         console.error(`Falha ao setar cargos no membro ${idMembro}:`, err);
                     }
                 
+                    // Geração dinâmica das menções dos cargos para evitar que o bot quebre se a variável antiga falhar
+                    const cargosMencionadosString = values && values.length > 0 
+                        ? values.map(id => `<@&${id}>`).join(', ') 
+                        : `<@&${ID_CARGO_GERAL_ADV}>`;
+                
                     // 2. TEXTO ELABORADO DE DEFERIMENTO (SEM EMBED)
                     const textoMensagem = 
                         `### ⚖️ DEFERIDO + #${numeroFinalDoCaso}\n` +
                         `> **STATUS JURÍDICO:** SENTENÇA DEFERIDA (PROCEDENTE)\n\n` +
                         `O Departamento de Controle Interno e Corregedoria Geral concluiu a avaliação regulamentar do presente protocolo de ocorrência. Com base no acervo probatório submetido, foi constatado desvio formal de conduta administrativa.\n\n` +
-                        `👤 **Infrator Penalizado:** <@${idMembro}>\n` +
-                        `⚠️ **Sanções Regimentais Aplicadas:**\n${textoAdvsMarcadas}\n\n` +
+                        `👤 **Infrator Penalizado:** <@${idMembro}>\n\n` +
+                        `⚠️ **Sanções Regimentais Aplicadas:**\n${cargosMencionadosString}\n\n` +
                         `*Determina-se a averbação imediata deste veredicto na ficha funcional do servidor. Notificação processual expedida.*\n\n` +
                         `✍️ *Relator Responsável:* \`${interaction.user.tag}\` — <t:${Math.floor(Date.now() / 1000)}:R>`;
                 
-                    // Envia o texto formatado diretamente no canal de resultados
-                    await canalResultados.send({ 
-                        content: `🔔 **Citação Processual:** <@${idMembro}>\n\n${textoMensagem}` 
-                    });
+                    // Envia o texto formatado diretamente no canal de resultados de forma segura
+                    if (canalResultados) {
+                        await canalResultados.send({ 
+                            content: `🔔 **Citação Processual:** <@${idMembro}>\n\n${textoMensagem}` 
+                        }).catch(err => console.error("Erro ao enviar para canalResultados:", err));
+                    }
                 
-                    // 3. ENVIO DO FORMATO SIMPLIFICADO PARA O CANAL DE LOGS ESPECÍFICO
+                    // 3. ENVIO DO FORMATO SIMPLIFICADO PARA O CANAL DE LOGS ESPECÍFICO (PROTEGIDO)
                     try {
                         const canalLogsEspecifico = await guild.channels.fetch('1529134407330562239').catch(() => null);
                         if (canalLogsEspecifico) {
                             const textoLogSimplificado = 
                                 `**QRA:** <@${idMembro}>\n` +
                                 `**MOTIVO:** Caso corregedoria #${numeroFinalDoCaso}\n` +
-                                `**ADVERTÊNCIA APLICADA:** ${textoAdvsMarcadas}\n` +
+                                `**ADVERTÊNCIA APLICADA:** ${cargosMencionadosString}\n` +
                                 `**RESPONSÁVEL:** ${interaction.user}`;
                 
-                            await canalLogsEspecifico.send({ content: textoLogSimplificado });
+                            await canalLogsEspecifico.send({ content: textoLogSimplificado }).catch(err => console.error("Erro ao enviar mensagem de log:", err));
                         }
                     } catch (err) {
-                        console.error("Erro ao enviar mensagem para o canal de logs específico:", err);
+                        console.error("Erro ao processar canal de logs específico:", err);
                     }
                 }
-                
+
                 // 3. GERADOR NATIVO DE TRANSCRIPT (EXPORTAÇÃO DE CONVERSA)
                 try {
                     const mensagens = await interaction.channel.messages.fetch({ limit: 100 });
