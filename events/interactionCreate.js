@@ -51,27 +51,28 @@ module.exports = {
 
             // BOTÃO: Iniciar o processo de fechamento do chamado
             if (customId === 'btn_fechar_ticket') {
-                const temAcesso = interaction.member.roles.cache.has(config.idCargoCorregedor) || 
-                                  interaction.member.roles.cache.has(config.idCargoStaff) || 
+                // Verifica se o usuário tem algum dos IDs das listas de Corregedor ou Staff, ou se é Administrador
+                const temAcesso = config.idCargoCorregedor.some(id => interaction.member.roles.cache.has(id)) || 
+                                  config.idCargoStaff.some(id => interaction.member.roles.cache.has(id)) || 
                                   interaction.member.permissions.has(PermissionFlagsBits.Administrator);
-
+            
                 if (!temAcesso) {
                     return interaction.reply({ content: "❌ Apenas membros da Corregedoria ou Staff podem definir o veredicto deste caso.", ephemeral: true });
                 }
-
+            
                 const embedFiltro = new EmbedBuilder()
                     .setTitle("👤 SELEÇÃO DE ENVOLVIDOS")
                     .setDescription("Selecione abaixo o(s) usuário(s) que receberá(ão) o veredicto deste caso. Você pode marcar mais de um se necessário:")
                     .setColor(0x2f3136);
-
+            
                 const menuUsuarios = new UserSelectMenuBuilder()
                     .setCustomId('selecao_membros_caso')
                     .setPlaceholder('Clique aqui para selecionar os envolvidos...')
                     .setMinValues(1)
                     .setMaxValues(10);
-
+            
                 const rowUsuarios = new ActionRowBuilder().addComponents(menuUsuarios);
-
+            
                 return interaction.reply({ embeds: [embedFiltro], components: [rowUsuarios] });
             }
 
