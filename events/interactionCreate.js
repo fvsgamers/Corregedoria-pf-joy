@@ -281,24 +281,23 @@ module.exports = {
                     } catch (err) {
                         console.error(`Falha ao setar cargos no membro ${idMembro}:`, err);
                     }
-
-                    // 2. TEXTO ELABORADO DE DEFERIMENTO
-                    const embedIndividual = new EmbedBuilder()
-                        .setTitle(`⚖️ DEFERIDO + #${numeroFinalDoCaso}`)
-                        .setDescription(
-                            `**STATUS JURÍDICO:** SENTENÇA DEFERIDA (PROCEDENTE)\n\n` +
-                            `O Departamento de Controle Interno e Corregedoria Geral concluiu a avaliação regulamentar do presente protocolo de ocorrência. Com base no acervo probatório submetido, foi constatado desvio formal de conduta administrativa.\n\n` +
-                            `👤 **Infrator Penalizado:** <@${idMembro}>\n\n` +
-                            `⚠️ **Sanções Regimentais Aplicadas:**\n${textoAdvsMarcadas}\n\n` +
-                            `*Determina-se a averbação imediata deste veredicto na ficha funcional do servidor. Notificação processual expedida.*`
-                        )
-                        .setColor(0x2ecc71)
-                        .setFooter({ text: `Relator Responsável: ${interaction.user.tag}` })
-                        .setTimestamp();
-
-                    await canalResultados.send({ content: `🔔 **Citação Processual:** <@${idMembro}>`, embeds: [embedIndividual] });
+                
+                    // 2. TEXTO ELABORADO DE DEFERIMENTO (SEM EMBED)
+                    const textoMensagem = 
+                        `### ⚖️ DEFERIDO + #${numeroFinalDoCaso}\n` +
+                        `> **STATUS JURÍDICO:** SENTENÇA DEFERIDA (PROCEDENTE)\n\n` +
+                        `O Departamento de Controle Interno e Corregedoria Geral concluiu a avaliação regulamentar do presente protocolo de ocorrência. Com base no acervo probatório submetido, foi constatado desvio formal de conduta administrativa.\n\n` +
+                        `👤 **Infrator Penalizado:** <@${idMembro}>\n` +
+                        `⚠️ **Sanções Regimentais Aplicadas:**\n${textoAdvsMarcadas}\n\n` +
+                        `*Determina-se a averbação imediata deste veredicto na ficha funcional do servidor. Notificação processual expedida.*\n\n` +
+                        `✍️ *Relator Responsável:* \`${interaction.user.tag}\` — <t:${Math.floor(Date.now() / 1000)}:R>`;
+                
+                    // Envia o texto formatado diretamente no canal de resultados com a citação inicial
+                    await canalResultados.send({ 
+                        content: `🔔 **Citação Processual:** <@${idMembro}>\n\n${textoMensagem}` 
+                    });
                 }
-
+                
                 // 3. GERADOR NATIVO DE TRANSCRIPT (EXPORTAÇÃO DE CONVERSA)
                 try {
                     const mensagens = await interaction.channel.messages.fetch({ limit: 100 });
