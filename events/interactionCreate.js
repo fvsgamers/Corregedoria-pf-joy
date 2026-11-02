@@ -103,21 +103,21 @@ module.exports = {
 
                 if (dadosCaso && canalResultados) {
                     const listaMencionados = dadosCaso.envolvidos.map(id => `<@${id}>`).join(', ');
-
-                    // TEXTO ELABORADO DE INDEFERIMENTO
-                    const embedResultado = new EmbedBuilder()
-                        .setTitle(`🏛️ INDEFERIDO + #${numeroFinalDoCaso}`)
-                        .setDescription(
-                            `**STATUS JURÍDICO:** SENTENÇA INDEFERIDA (IMPROCEDENTE)\n\n` +
-                            `A Corregedoria Geral da Cidade, após análise detida dos fatos narrados e verificação da idoneidade material trazida aos autos do chamado, declara o processo **ARQUIVADO**.\n\n` +
-                            `👤 **Membros Citados:** ${listaMencionados}\n\n` +
-                            `⚠️ **Fundamentação da Recusa:** A postulação não reuniu condições mínimas de admissibilidade, sendo rejeitada por **total ausência de elementos probatórios concretos** (falta de filmagens claras ou evidências inequívocas) ou por incompatibilidade técnica com o regimento disciplinar de condutas vigentes na cidade.`
-                        )
-                        .setColor(0xe74c3c)
-                        .setFooter({ text: `Relator Responsável: ${interaction.user.tag}` })
-                        .setTimestamp();
-
-                    await canalResultados.send({ content: `🔔 **Notificação de Arquivamento:** ${listaMencionados}`, embeds: [embedResultado] });
+                
+                    // TEXTO ELABORADO DE INDEFERIMENTO (SEM EMBED)
+                    const textoMensagemIndeferido = 
+                        `### 🏛️ INDEFERIDO + #${numeroFinalDoCaso}\n` +
+                        `> **STATUS JURÍDICO:** SENTENÇA INDEFERIDA (IMPROCEDENTE)\n\n` +
+                        `A Corregedoria Geral da Cidade, após análise detida dos fatos narrados e verificação da idoneidade material trazida aos autos do chamado, declara o processo **ARQUIVADO**.\n\n` +
+                        `👤 **Membros Citados:** ${listaMencionados}\n\n` +
+                        `⚠️ **Fundamentação da Recusa:**\n` +
+                        `A postulação não reuniu condições mínimas de admissibilidade, sendo rejeitada por **total ausência de elementos probatórios concretos** (falta de filmagens claras ou evidências inequívocas) ou por incompatibilidade técnica com o regimento disciplinar de condutas vigentes na cidade.\n\n` +
+                        `✍️ *Relator Responsável:* \`${interaction.user.tag}\` — <t:${Math.floor(Date.now() / 1000)}:R>`;
+                
+                    // Envia o texto formatado diretamente no canal de resultados com a notificação
+                    await canalResultados.send({ 
+                        content: `🔔 **Notificação de Arquivamento:** ${listaMencionados}\n\n${textoMensagemIndeferido}` 
+                    });
                 }
 
                 // GERADOR DE TRANSCRIPT PARA CASO INDEFERIDO
