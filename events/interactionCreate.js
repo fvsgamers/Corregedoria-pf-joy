@@ -76,20 +76,15 @@ module.exports = {
                 return interaction.reply({ embeds: [embedFiltro], components: [rowUsuarios] });
             }
 
-            // BOTÃO: Veredicto Deferido (Abre seleção de advertências)
+           // BOTÃO: Veredicto Deferido (Abre seleção de advertências)
             if (customId === 'btn_final_deferido') {
                 const menuAdvs = new StringSelectMenuBuilder()
                     .setCustomId('menu_advertencias_multiplas')
                     .setPlaceholder('Selecione uma ou mais advertências...')
                     .setMinValues(1)
-                    .setMaxValues(4)
-                    .addOptions([
-                        { label: 'Advertência Verbal', description: 'Aplicação de aviso verbal regulamentar.', value: '1394767862174060705' },
-                        { label: 'Advertência Escrita Nível 1', description: 'ID: 1394767901218836521', value: '1394767901218836521' },
-                        { label: 'Advertência Geral Nível 2', description: 'ID: 1394767944176631969', value: '1394767944176631969' },
-                        { label: 'Suspensão Administrativa', description: 'ID: 1511367174307188866', value: '1511367174307188866' }
-                    ]);
-
+                    .setMaxValues(config.opcoesPunicao.length) // Ajusta dinamicamente o máximo para o total de opções no JSON
+                    .addOptions(config.opcoesPunicao);
+            
                 const rowAdvs = new ActionRowBuilder().addComponents(menuAdvs);
                 return interaction.update({ content: '🚨 **Selecione as punições aplicáveis abaixo:**', embeds: [], components: [rowAdvs] });
             }
