@@ -59,6 +59,23 @@ module.exports = {
                     return interaction.reply({ content: "❌ Apenas membros da Corregedoria ou Staff podem definir o veredicto deste caso.", ephemeral: true });
                 }
 
+                // Se for um ticket de revogação e o usuário já selecionou a punição no início, usamos esses dados pré-salvos
+                const dadosExistentes = memoriaFechamento.get(channelId);
+                if (dadosExistentes && dadosExistentes.isRevogacao) {
+                    // Pula a seleção de múltiplos membros (já que o alvo é o próprio criador do ticket)
+                    const embedEscolha = new EmbedBuilder()
+                        .setTitle("⚖️ ESCOLHA O VEREDICTO DA REVOGAÇÃO")
+                        .setDescription(`Usuário solicitante: <@${dadosExistentes.envolvidos[0]}>\nCargo para revisar: <@&${dadosExistentes.cargoParaRemover}>\n\nEscolha o desfecho deste pedido de revisão:`)
+                        .setColor(0x2f3136);
+
+                    const rowEscolhas = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId('btn_final_deferido').setLabel('✅ Deferido (Retirar Punição)').setStyle(ButtonStyle.Success),
+                        new ButtonBuilder().setCustomId('btn_final_indeferido').setLabel('❌ Indeferido (Manter Punição)').setStyle(ButtonStyle.Danger)
+                    );
+
+                    return interaction.reply({ embeds: [embedEscolha], components: [rowEscolhas] });
+                }
+
                 const embedFiltro = new EmbedBuilder()
                     .setTitle("👤 SELEÇÃO DE ENVOLVIDOS")
                     .setDescription("Selecione abaixo o(s) usuário(s) que receberá(ão) o veredicto deste caso. Você pode marcar mais de um se necessário:")
@@ -75,8 +92,57 @@ module.exports = {
                 return interaction.reply({ embeds: [embedFiltro], components: [rowUsuarios] });
             }
 
-            // BOTÃO: Veredicto Deferido (Abre seleção de advertências)
+            // BOTÃO: Veredicto Deferido (Abre seleção de advertências OU processa revogação direto)
             if (customId === 'btn_final_deferido') {
+                const dadosCaso = memoriaFechamento.get(channelId);
+                
+                // Se for um processo de revogação, o "Deferido" significa RETIRAR a punição imediatamente
+                if (dadosCaso && dadosCaso.isRevogacao) {
+                    let canalResultados = guild.channels.cache.get(ID_CANAL_RESULTADOS);
+                    const numeroFinalDoCaso = obterProximoCaso();
+                    const ID_CANAL_TRANSCRIPTS = "1565194110199930971";
+                    const ID_CARGO_GERAL_ADV = "13947740627062874"; 
+
+                    const idMembro = dadosCaso.envolvidos[0];
+                    try {
+                        const membroAlvo = await guild.members.fetch(idMembro).catch(() => null);
+                        if (membroAlvo) {
+                            // Remove a advertência específica selecionada pelo usuário
+                            await membroAlvo.roles.remove(dadosCaso.cargoParaRemover).catch(() => {});
+                            // Remove o cargo de advertência geral
+                            await membroAlvo.roles.remove(ID_CARGO_GERAL_ADV).catch(() => {});
+                        }
+                    } catch (err) { console.error(err); }
+
+                    const textoMensagem = 
+                        `### ⚖️ REVOGAÇÃO DEFERIDA + #${numeroFinalDoCaso}\n` +
+                        `> **STATUS JURÍDICO:** SENTENÇA REFORMADA (PUNIÇÃO REVOGADA)\n\n` +
+                        `A Corregedoria Geral, após revisar a contestação submetida pelo colaborador, determinou o **DEFERIMENTO** do pedido. As sanções anteriores foram anuladas e removidas de sua ficha funcional.\n\n` +
+                        `👤 **Cidadão Beneficiado:** <@${idMembro}>\n` +
+                        `❌ **Sanção Retirada:** <@&${dadosCaso.cargoParaRemover}>\n\n` +
+                        `✍ *Corregedor Responsável:* <@${interaction.user.id}> — <t:${Math.floor(Date.now() / 1000)}:R>`;
+
+                    if (canalResultados) {
+                        await canalResultados.send({ content: `🔔 **Aviso de Revogação:** <@${idMembro}>\n\n${textoMensagem}` }).catch(err => console.error(err));
+                    }
+
+                    // Gera o Transcript em segundo plano
+                    try {
+                        const mensagens = await interaction.channel.messages.fetch({ limit: 100 });
+                        let conteudoTexto = `=== TRANSCRIPT OFICIAL - REVOGAÇÃO ACEITA #${numeroFinalDoCaso} ===\n`;
+                        msgOrdenadas = mensagens.reverse();
+                        msgOrdenadas.forEach(m => { conteudoTexto += `[${m.createdAt.toLocaleTimeString('pt-BR')}] ${m.author.tag}: ${m.content}\n`; });
+                        const bufferTexto = Buffer.from(conteudoTexto, 'utf-8');
+                        const canalAuditoria = guild.channels.cache.get(ID_CANAL_TRANSCRIPTS);
+                        if (canalAuditoria) await canalAuditoria.send({ content: `📁 **Logs de Revogação:** Caso \`#${numeroFinalDoCaso}\` deferido por ${interaction.user}.`, files: [{ attachment: bufferTexto, name: `revogacao-${numeroFinalDoCaso}.txt` }] });
+                    } catch (e) { console.error(e); }
+
+                    await interaction.update({ content: `🔒 **Revogação Processada com Sucesso!** Cargo removido e logs salvos.\n⚠️ *Este canal será deletado em 10 segundos.*`, embeds: [], components: [] });
+                    memoriaFechamento.delete(channelId);
+                    return setTimeout(() => interaction.channel.delete().catch(() => {}), 10000);
+                }
+
+                // Fluxo normal de ticket de denúncia (abrir menu de punições)
                 const menuAdvs = new StringSelectMenuBuilder()
                     .setCustomId('menu_advertencias_multiplas')
                     .setPlaceholder('Selecione uma ou mais advertências...')
@@ -91,162 +157,183 @@ module.exports = {
             // BOTÃO: Veredicto Indeferido (Texto Elaborado + Transcript + Delete em 10s)
             if (customId === 'btn_final_indeferido') {
                 const dadosCaso = memoriaFechamento.get(channelId);
-                const canalResultados = guild.channels.cache.get(ID_CANAL_RESULTADOS);
+                const canalResultados = guild.channels.cache.get(ID_CANAL_RESULTS) || guild.channels.cache.get(ID_CANAL_RESULTADOS);
                 const numeroFinalDoCaso = obterProximoCaso();
                 const ID_CANAL_TRANSCRIPTS = "1565194110199930971";
 
                 if (dadosCaso && canalResultados) {
-                    const listaMencionados = dadosCaso.envolvidos.map(id => `<@${id}>`).join(', ');
+                    const idMembro = dadosCaso.envolvidos[0];
+                    
+                    // Se for um caso de revogação negada (Indeferida)
+                    if (dadosCaso.isRevogacao) {
+                        const textoMensagemIndeferido = 
+                                                    `### 🏛️ REVOGAÇÃO INDEFERIDA + #${numeroFinalDoCaso}\n` +
+                        `> **STATUS JURÍDICO:** CONTESTAÇÃO REJEITADA (PUNIÇÃO MANTIDA)\n\n` +
+                        `A Corregedoria Geral avaliou os fundamentos do pedido de revisão e determinou o seu **INDEFERIMENTO**. As provas funcionais aplicadas originalmente são válidas e permanecem ativas.\n\n` +
+                        `👤 **Colaborador:** <@${idMembro}>\n` +
+                        `⚠️ **Manutenção da Sanção:** <@&${dadosCaso.cargoParaRemover}>\n\n` +
+                        `✍️ *Relator Responsável:* \`${interaction.user.tag}\` — <t:${Math.floor(Date.now() / 1000)}:R>`;
 
+                    await canalResultados.send({ content: `🔔 **Notificação de Julgamento:** <@${idMembro}>\n\n${textoMensagemIndeferido}` });
+                } else {
+                    // Denúncia comum arquivada
+                    const listaMencionados = dadosCaso.envolvidos.map(id => `<@${id}>`).join(', ');
                     const textoMensagemIndeferido = 
                         `### 🏛️ INDEFERIDO + #${numeroFinalDoCaso}\n` +
                         `> **STATUS JURÍDICO:** SENTENÇA INDEFERIDA (IMPROCEDENTE)\n\n` +
                         `A Corregedoria Geral da Cidade, após análise detida dos fatos narrados e verificação da idoneidade material trazida aos autos do chamado, declara o processo **ARQUIVADO**.\n\n` +
                         `👤 **Membros Citados:** ${listaMencionados}\n\n` +
                         `⚠️ **Fundamentação da Recusa:**\n` +
-                        `A postulação não reuniu condições mínimas de admissibilidade, sendo rejeitada por **total ausência de elementos probatórios concretos** (falta de filmagens claras ou evidências inequívocas) ou por incompatibilidade técnica com o regimento disciplinar de condutas vigentes na cidade.\n\n` +
+                        `A postulação não reuniu condições minima de admissibilidade, sendo rejeitada por **total ausência de elementos probatórios concretos** ou por incompatibilidade técnica com o regimento.\n\n` +
                         `✍️ *Relator Responsável:* \`${interaction.user.tag}\` — <t:${Math.floor(Date.now() / 1000)}:R>`;
 
-                    await canalResultados.send({ 
-                        content: `🔔 **Notificação de Arquivamento:** ${listaMencionados}\n\n${textoMensagemIndeferido}` 
-                    });
-                }
-
-                try {
-                    const mensagens = await interaction.channel.messages.fetch({ limit: 100 });
-                    let conteudoTexto = `=== TRANSCRIPT OFICIAL DE ATENDIMENTO - CASO INDEFERIDO #${numeroFinalDoCaso} ===\n`;
-                    conteudoTexto += `Canal: ${interaction.channel.name} | Exportado em: ${new Date().toLocaleString('pt-BR')}\n\n`;
-
-                    const msgOrdenadas = mensagens.reverse();
-                    msgOrdenadas.forEach(m => {
-                        conteudoTexto += `[${m.createdAt.toLocaleTimeString('pt-BR')}] ${m.author.tag}: ${m.content}\n`;
-                    });
-
-                    const nomeArquivo = `transcript-indeferido-${numeroFinalDoCaso}.txt`;
-                    const bufferTexto = Buffer.from(conteudoTexto, 'utf-8');
-
-                    const canalAuditoria = guild.channels.cache.get(ID_CANAL_TRANSCRIPTS) || await guild.channels.fetch(ID_CANAL_TRANSCRIPTS).catch(() => null);
-                    if (canalAuditoria) {
-                        await canalAuditoria.send({ 
-                            content: `📁 **Histórico de Arquivamento:** Caso \`#${numeroFinalDoCaso}\` arquivado/indeferido por ${interaction.user}.`,
-                            files: [{ attachment: bufferTexto, name: nomeArquivo }]
-                        });
-                    }
-                } catch (e) { console.error(e); }
-
-                await interaction.update({ content: `🔒 **Caso Indeferido com Sucesso!** Relatório gerado e enviado para a auditoria.\n⚠️ *Este canal será permanentemente deletado em 10 segundos.*`, embeds: [], components: [] });
-                memoriaFechamento.delete(channelId);
-                return setTimeout(() => interaction.channel.delete().catch(() => {}), 10000);
-            }
-
-            // --- LÓGICA DE CRIAÇÃO DE NOVOS TICKETS PRIVADOS ---
-            let nomeCanal = "";
-            let cargoAcessoId = "";
-            let embedTicket = new EmbedBuilder();
-            let mencaoCargo = "";
-
-            if (customId === 'btn_corregedoria') {
-                nomeCanal = `⚖️-corregedoria-${user.username}`;
-                cargoAcessoId = config.idCargoCorregedor || "";
-                mencaoCargo = cargoAcessoId ? `<@&${cargoAcessoId}>` : "@Corregedoria";
-
-                embedTicket
-                    .setTitle("⚖️ CORREGEDORIA GERAL DA CIDADE")
-                    .setDescription(
-                        `Prezado(a) cidadão(ã) ${user},\n\n` +
-                        `Você está no canal oficial de atendimento da **Corregedoria Geral**.\n\n` +
-                        `⚠️ **Garantia de Sigilo:** Nos termos do regimento, todas as informações são confidenciais.\n\n` +
-                        `Para iniciarmos a investigação, **envie abaixo as seguintes informações**:`
-                    )
-                    .addFields({ name: '📋 Formulário de Abertura', value: `• **Seu Passaporte (ID):**\n• **Nome ou ID do Oficial Envolvido:**\n• **Corporação/Organização:** (Ex: PM, PC)\n• **Relato Detalhado:**\n• **Link de Provas:** (Vídeo anexado no YouTube/Medal)` })
-                    .setColor(0xff0000)
-                    .setTimestamp();
-            }
-
-            if (customId === 'btn_revogacao') {
-                nomeCanal = `📝-revogacao-${user.username}`;
-                cargoAcessoId = config.idCargoStaff || "";
-                mencaoCargo = cargoAcessoId ? `<@&${cargoAcessoId}>` : "@Staff";
-
-                embedTicket
-                    .setTitle("📝 DEPARTAMENTO DE REVISÃO E REVOGAÇÃO")
-                    .setDescription(`Olá ${user},\n\nEste canal foi aberto para apresentar sua contestação formal de punições aplicadas no servidor.\n\nPreencha a sua ficha de defesa abaixo:`)
-                    .addFields({ name: '📋 Ficha de Contestação', value: `• **Seu Passaporte (ID):**\n• **Qual punição deseja revogar?**\n• **Quem aplicou a punição?**\n• **Sua Justificativa/Defesa:**` })
-                                        .setColor(0x0000ff)
-                    .setTimestamp();
-            }
-
-            if (nomeCanal) {
-                const regrasPermissao = [
-                    { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
-                    { id: user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles] },
-                    { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels] }
-                ];
-
-                if (cargoAcessoId && guild.roles.cache.has(cargoAcessoId)) {
-                    regrasPermissao.push({ id: cargoAcessoId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] });
-                }
-
-                try {
-                    const canalCriado = await guild.channels.create({
-                        name: nomeCanal,
-                        type: 0,
-                        parent: ID_CATEGORIA_TICKETS,
-                        permissionOverwrites: regrasPermissao
-                    });
-
-                    await interaction.reply({ content: `✅ Seu canal administrativo foi aberto com sucesso em ${canalCriado}`, ephemeral: true });
-
-                    // Linha 1: Botão de fechar nativo e limpo
-                    const rowFechar = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('btn_fechar_ticket').setLabel('🔒 Fechar Ticket').setStyle(ButtonStyle.Secondary)
-                    );
-
-                    const componentesEnvio = [rowFechar];
-
-                    // Linha 2: O menu de citar para defesa só entra se for o canal da corregedoria
-                    if (customId === 'btn_corregedoria') {
-                        const rowMenuCitar = new ActionRowBuilder().addComponents(
-                            new UserSelectMenuBuilder()
-                                .setCustomId('citar_participantes')
-                                .setPlaceholder('⚖️ Selecione até 10 pessoas para a defesa')
-                                .setMinValues(1)
-                                .setMaxValues(10)
-                        );
-                        componentesEnvio.push(rowMenuCitar);
-                    }
-
-                    await canalCriado.send({ content: mencaoCargo, embeds: [embedTicket], components: componentesEnvio });
-                } catch (error) {
-                    console.error("Erro ao criar canal na categoria:", error);
-                    await interaction.reply({ content: "❌ Erro: Verifique se o Bot possui a permissão de 'Gerenciar Canais' na categoria alvo.", ephemeral: true });
+                    await canalResultados.send({ content: `🔔 **Notificação de Arquivamento:** ${listaMencionados}\n\n${textoMensagemIndeferido}` });
                 }
             }
+
+            try {
+                const mensagens = await interaction.channel.messages.fetch({ limit: 100 });
+                let conteudoTexto = `=== TRANSCRIPT OFICIAL DE ATENDIMENTO - CASO INDEFERIDO #${numeroFinalDoCaso} ===\n`;
+                const msgOrdenadas = mensagens.reverse();
+                msgOrdenadas.forEach(m => { conteudoTexto += `[${m.createdAt.toLocaleTimeString('pt-BR')}] ${m.author.tag}: ${m.content}\n`; });
+                const bufferTexto = Buffer.from(conteudoTexto, 'utf-8');
+                const canalAuditoria = guild.channels.cache.get(ID_CANAL_TRANSCRIPTS);
+                if (canalAuditoria) await canalAuditoria.send({ content: `📁 **Histórico:** Caso \`#${numeroFinalDoCaso}\` finalizado por ${interaction.user}.`, files: [{ attachment: bufferTexto, name: `transcript-${numeroFinalDoCaso}.txt` }] });
+            } catch (e) { console.error(e); }
+
+            await interaction.update({ content: `🔒 **Caso Indeferido com Sucesso!** Relatório publicado e enviado para a auditoria.\n⚠️ *Este canal será permanentemente deletado em 10 segundos.*`, embeds: [], components: [] });
+            memoriaFechamento.delete(channelId);
+            return setTimeout(() => interaction.channel.delete().catch(() => {}), 10000);
         }
 
-        // --- 3. GERENCIAMENTO DE SELEÇÃO DE MENUS ---
-        if (interaction.isAnySelectMenu()) {
-            const { customId, values, channelId, guild } = interaction;
+        // --- LÓGICA DE CRIAÇÃO DE NOVOS TICKETS PRIVADOS ---
+        let nomeCanal = "";
+        let cargoAcessoId = "";
+        let embedTicket = new EmbedBuilder();
+        let mencaoCargo = "";
 
-            // MENU: Citar/Convocar envolvidos para a Defesa Legal
-            if (customId === 'citar_participantes') {
-                const temPermissao = config.idCargoCorregedor.some(id => interaction.member.roles.cache.has(id)) || 
-                                  interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+        if (customId === 'btn_corregedoria') {
+            nomeCanal = `⚖️-corregedoria-${user.username}`;
+            cargoAcessoId = config.idCargoCorregedor || "";
+            mencaoCargo = cargoAcessoId ? `<@&${cargoAcessoId}>` : "@Corregedoria";
 
-                if (!temPermissao) {
-                    return await interaction.reply({
-                        content: `❌ Apenas membros da **Corregedoria** ou **Administradores** podem adicionar participantes a este ticket.`,
-                        ephemeral: true
-                    });
+            embedTicket
+                .setTitle("⚖️ CORREGEDORIA GERAL DA CIDADE")
+                .setDescription(
+                    `Prezado(a) cidadão(ã) ${user},\n\n` +
+                    `Você está no canal oficial de atendimento da **Corregedoria Geral**.\n\n` +
+                    `⚠️ **Garantia de Sigilo:** Nos termos do regimento, todas as informações são confidenciais.\n\n` +
+                    `Para iniciarmos a investigação, **envie abaixo as seguintes informações**:`
+                )
+                .addFields({ name: '📋 Formulário de Abertura', value: `• **Seu Passaporte (ID):**\n• **Nome ou ID do Oficial Envolvido:**\n• **Corporação/Organização:** (Ex: PM, PC)\n• **Relato Detalhado:**\n• **Link de Provas:** (Vídeo anexado no YouTube/Medal)` })
+                .setColor(0xff0000)
+                .setTimestamp();
+        }
+
+        if (customId === 'btn_revogacao') {
+            nomeCanal = `📝-revogacao-${user.username}`;
+            cargoAcessoId = config.idCargoStaff || "";
+            mencaoCargo = cargoAcessoId ? `<@&${cargoAcessoId}>` : "@Staff";
+
+            embedTicket
+                .setTitle("📝 DEPARTAMENTO DE REVISÃO E REVOGAÇÃO")
+                .setDescription(`Olá ${user},\n\nEste canal foi aberto para apresentar sua contestação formal de punições aplicadas no servidor.\n\nPreencha a sua ficha de defesa abaixo:`)
+                .addFields({ name: '📋 Ficha de Contestação', value: `• **Seu Passaporte (ID):**\n• **Qual punição deseja revogar?**\n• **Quem aplicou a punição?**\n• **Sua Justificativa/Defesa:**` })
+                .setColor(0x0000ff)
+                .setTimestamp();
+        }
+
+        if (nomeCanal) {
+            const regrasPermissao = [
+                { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
+                { id: user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles] },
+                { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels] }
+            ];
+
+            if (cargoAcessoId && guild.roles.cache.has(cargoAcessoId)) {
+                regrasPermissao.push({ id: cargoAcessoId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] });
+            }
+
+            try {
+                const canalCriado = await guild.channels.create({
+                    name: nomeCanal,
+                    type: 0,
+                    parent: ID_CATEGORIA_TICKETS,
+                    permissionOverwrites: regrasPermissao
+                });
+
+                await interaction.reply({ content: `✅ Seu canal administrativo foi aberto com sucesso em ${canalCriado}`, ephemeral: true });
+
+                const rowFechar = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('btn_fechar_ticket').setLabel('🔒 Fechar Ticket').setStyle(ButtonStyle.Secondary)
+                );
+
+                const componentesEnvio = [rowFechar];
+
+                if (customId === 'btn_corregedoria') {
+                    const rowMenuCitar = new ActionRowBuilder().addComponents(
+                        new UserSelectMenuBuilder()
+                            .setCustomId('citar_participantes')
+                            .setPlaceholder('⚖️ Selecione até 10 pessoas para a defesa')
+                            .setMinValues(1)
+                            .setMaxValues(10)
+                    );
+                    componentesEnvio.push(rowMenuCitar);
                 }
 
-                // Resposta imediata para blindar contra o erro de tempo (Timeout) do Discord
-                await interaction.reply({ content: `🔄 Processando permissões e aplicando acessos...`, ephemeral: true });
+                if (customId === 'btn_revogacao') {
+                    const rowMenuRevogar = new ActionRowBuilder().addComponents(
+                        new StringSelectMenuBuilder()
+                            .setCustomId('selecao_adv_para_revogar')
+                            .setPlaceholder('🚨 Selecione qual advertência deseja revisar...')
+                            .setMinValues(1)
+                            .setMaxValues(1)
+                            .addOptions(config.opcoesPunicao)
+                    );
+                    componentesEnvio.push(rowMenuRevogar);
+                }
 
-                const usuariosSelecionados = interaction.users;
-                const mencoes = usuariosSelecionados.map(user => `<@${user.id}>`).join(', ');
+                await canalCriado.send({ content: mencaoCargo, embeds: [embedTicket], components: componentesEnvio });
+            } catch (error) {
+                console.error("Erro ao criar canal na categoria:", error);
+                await interaction.reply({ content: "❌ Erro: Verifique se o Bot possui a permissão de 'Gerenciar Canais' na categoria alvo.", ephemeral: true });
+            }
+        }
+    }
 
-                for (const [id, user] of usuariosSelecionados) {
+    // --- 3. GERENCIAMENTO DE SELEÇÃO DE MENUS ---
+    if (interaction.isAnySelectMenu()) {
+        const { customId, values, channelId, guild } = interaction;
+
+        if (customId === 'selecao_adv_para_revogar') {
+            const advEscolhidaId = values[0];
+            memoriaFechamento.set(channelId, { 
+                envolvidos: interaction.user.id, 
+                cargoParaRemover: advEscolhidaId,
+                isRevogacao: true 
+            });
+
+            return await interaction.reply({
+                content: `✅ Você selecionou a advertência <@&${advEscolhidaId}> para revisão.\nPreencha os dados do formulário acima detalhadamente e aguarde a Corregedoria avaliar.`,
+            });
+        }
+
+        if (customId === 'citar_participantes') {
+            const temPermissao = config.idCargoCorregedor.some(id => interaction.member.roles.cache.has(id)) || 
+                              interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+
+            if (!temPermissao) {
+                return await interaction.reply({
+                    content: `❌ Apenas membros da **Corregedoria** ou **Administradores** podem adicionar participantes a este ticket.`,
+                    ephemeral: true
+                });
+            }
+
+            await interaction.reply({ content: `🔄 Processando permissões e aplicando acessos...`, ephemeral: true });
+
+            const usuariosSelecionados = interaction.users;
+            const mencoes = usuariosSelecionados.map(user => `<@${user.id}>`).join(', ');
+                            for (const [id, user] of usuariosSelecionados) {
                     await interaction.channel.permissionOverwrites.create(id, {
                         ViewChannel: true,
                         SendMessages: true,
@@ -286,7 +373,7 @@ module.exports = {
 
                 let canalResultados = guild.channels.cache.get(ID_CANAL_RESULTADOS);
                 if (!canalResultados) {
-                    try { canalResultados = await guild.channels.fetch(ID_CANAL_RESULTADOS); } catch (e) {
+                    try { canalResultados = await guild.channels.fetch(ID_CANAL_RESULTS || ID_CANAL_RESULTADOS); } catch (e) {
                         canalResultados = guild.channels.cache.find(c => c.name === "resultados-corregedoria" || c.name === "logs-resultados");
                     }
                 }
@@ -340,7 +427,7 @@ module.exports = {
                     if (canalResultados) {
                         await canalResultados.send({ 
                             content: `🔔 **Citação Processual:** <@${idMembro}>\n\n${textoMensagem}` 
-                                                                    }).catch(err => console.error(err));
+                        }).catch(err => console.error(err));
                     }
 
                     try {
@@ -387,4 +474,6 @@ module.exports = {
         }
     },
 };
+
+
 
