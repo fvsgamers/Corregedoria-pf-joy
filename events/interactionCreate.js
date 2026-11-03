@@ -200,9 +200,23 @@ module.exports = {
 
                     await interaction.reply({ content: `✅ Seu canal administrativo foi aberto com sucesso em ${canalCriado}`, ephemeral: true });
 
-                                const rowFechar = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('btn_fechar_ticket').setLabel('🔒 Fechar Ticket').setStyle(ButtonStyle.Secondary)
-                    );
+                                // =====================================================================
+                    // ⚖️ ALTERAÇÃO: BOTÃO DE FECHAR + MENU DE SELEÇÃO DE PARTICIPANTES
+                    // =====================================================================
+                    const botaoFechar = new ButtonBuilder()
+                        .setCustomId('btn_fechar_ticket')
+                        .setLabel('🔒 Fechar Ticket')
+                        .setStyle(ButtonStyle.Secondary);
+                    
+                    const menuCitar = new UserSelectMenuBuilder()
+                        .setCustomId('citar_participantes')
+                        .setPlaceholder('⚖️ Selecione até 10 pessoas para a defesa')
+                        .setMinValues(1)
+                        .setMaxValues(10);
+                    
+                    const rowFechar = new ActionRowBuilder().addComponents(botaoFechar, menuCitar);
+                    // =====================================================================
+
                     await canalCriado.send({ content: mencaoCargo, embeds: [embedTicket], components: [rowFechar] });
                 } catch (error) {
                     console.error("Erro ao criar canal na categoria:", error);
@@ -213,6 +227,51 @@ module.exports = {
 
         // --- 3. GERENCIAMENTO DE SELEÇÃO DE MENUS ---
         if (interaction.isAnySelectMenu()) {
+                        // =====================================================================
+            // ⚖️ ENCAIXE: MENU DE SELEÇÃO PARA CITAR PARTICIPANTES DA DEFESA
+            // =====================================================================
+            if (customId === 'citar_participantes') {
+                // IDs dos cargos autorizados (Substitua pelos IDs reais da sua Corregedoria)
+                const CARGOS_PERMITIDOS_IDS = config.idCargoCorregedor || []; 
+                
+                // Verificação de segurança (Verifica por ID no config ou se tem o nome do cargo)
+                const temPermissao = interaction.member.roles.cache.some(role => 
+                    CARGOS_PERMITIDOS_IDS.includes(role.id) || 
+                    role.name.toLowerCase() === 'corregedoria' || 
+                    role.name.toLowerCase() === 'admin'
+                ) || interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+
+                // Se não for Corregedor ou Admin, bloqueia
+                if (!temPermissao) {
+                    return await interaction.reply({
+                        content: `❌ Apenas membros da **Corregedoria** ou **Administradores** podem adicionar participantes a este ticket.`,
+                        ephemeral: true
+                    });
+                }
+
+                // Coleta os usuários selecionados e cria as menções dinâmicas clicáveis
+                const usuariosSelecionados = interaction.users;
+                const mencoes = usuariosSelecionados.map(user => `<@${user.id}>`).join(', ');
+
+                // Adiciona permissão para cada um conseguir ver e digitar no canal do ticket
+                for (const [id, user] of usuariosSelecionados) {
+                    await interaction.channel.permissionOverwrites.create(id, {
+                        ViewChannel: true,
+                        SendMessages: true,
+                        ReadMessageHistory: true
+                    }).catch(err => console.error(`Erro ao dar permissão ao usuário ${id}:`, err));
+                }
+
+                const timestamp = Math.floor(Date.now() / 1000);
+                
+                // Envia a convocação formal no chat do ticket
+                return await interaction.reply({
+                    content: `✍️ *Participante(s) Convocado(s):* ${mencoes} — por <@${interaction.user.id}> em <t:${timestamp}:R>\n\n` +
+                             `⚠️ **Prezado(a)(s), você foi citado nesta corregedoria.** Fica por meio deste ato convocado(a) a apresentar sua defesa legal mediante os fatos e evidências apresentados na denúncia deste ticket.`
+                });
+            }
+            // =====================================================================
+
             const { customId, values, channelId, guild } = interaction;
 
             // Etapa 1: Captura envolvidos marcados
