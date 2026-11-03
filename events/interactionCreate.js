@@ -49,25 +49,6 @@ module.exports = {
                 const { guild, user, customId, channelId } = interaction;
             
                 // ==========================================
-                // BOTÃO: CITAR ENVOLVIDOS (Abertura de denúncia)
-                // ==========================================
-                if (customId === 'btn_citar_envolvidos') {
-                    const menuCitarUsuarios = new UserSelectMenuBuilder()
-                        .setCustomId('menu_citacao_abertura')
-                        .setPlaceholder('Selecione os membros que serão citados na denúncia...')
-                        .setMinValues(1)
-                        .setMaxValues(10);
-            
-                    const rowMenu = new ActionRowBuilder().addComponents(menuCitarUsuarios);
-            
-                    return interaction.reply({ 
-                        content: '👇 **Selecione abaixo os usuários envolvidos para realizar a citação:**', 
-                        components: [rowMenu], 
-                        ephemeral: true 
-                    }).catch(err => console.error("Erro ao abrir menu de citar:", err));
-                }
-            
-                // ==========================================
                 // BOTÃO: Iniciar o processo de fechamento do chamado
                 // ==========================================
                 if (customId === 'btn_fechar_ticket') {
@@ -111,7 +92,8 @@ module.exports = {
                     return interaction.update({ content: '🚨 **Selecione as punições aplicáveis abaixo:**', embeds: [], components: [rowAdvs] });
                 }
             }
-                        // BOTÃO: Veredicto Indeferido (Texto Elaborado + Transcript + Delete em 10s)
+    
+        // BOTÃO: Veredicto Indeferido (Texto Elaborado + Transcript + Delete em 10s)
             if (customId === 'btn_final_indeferido') {
                 const dadosCaso = memoriaFechamento.get(channelId);
                 const canalResultados = guild.channels.cache.get(ID_CANAL_RESULTADOS);
