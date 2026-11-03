@@ -138,6 +138,23 @@ module.exports = {
                         await canalResultados.send({ content: `🔔 **Aviso de Revogação:** <@${idMembro}>\n\n${textoMensagem}` }).catch(err => console.error(err));
                     }
 
+                                        // ENVIO DO LOG SIMPLIFICADO DE REVOGAÇÃO DEFERIDA (ACEITA)
+                    try {
+                        const canalLogsRevogacao = await guild.channels.fetch('1529134489341788421').catch(() => null);
+                        if (canalLogsRevogacao) {
+                            const textoLogRevogacao = 
+                                `### 📝 REVOGAÇÃO DEFERIDA (PUNIÇÃO RETIRADA)\n` +
+                                `**QRA:** <@${idMembro}>\n` +
+                                `**MOTIVO:** Revisão aprovada no Caso #${numeroFinalDoCaso}\n` +
+                                `**ADVERTÊNCIA RETIRADA:** <@&${dadosCaso.cargoParaRemover}>\n` +
+                                `**STATUS:** Cargo removido com sucesso da ficha funcional.\n` +
+                                `**CORREGEDOR RESPONSÁVEL:** <@${interaction.user.id}>`;
+
+                            await canalLogsRevogacao.send({ content: textoLogRevogacao }).catch(err => console.error("Erro ao enviar log de revogação deferida:", err));
+                        }
+                    } catch (err) { console.error("Erro no canal de logs de revogação:", err); }
+
+
                     // Gera o Transcript em segundo plano
                     try {
                         const mensagens = await interaction.channel.messages.fetch({ limit: 100 });
