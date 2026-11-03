@@ -297,7 +297,7 @@ module.exports = {
                         `👤 **Infrator Penalizado:** <@${idMembro}>\n\n` +
                         `⚠️ **Sanções Regimentais Aplicadas:**\n${cargosMencionadosString}\n\n` +
                         `*Determina-se a averbação imediata deste veredicto na ficha funcional do servidor. Notificação processual expedida.*\n\n` +
-                        `✍️ *Relator Responsável:* \`<@${interaction.user.id}>\` — <t:${Math.floor(Date.now() / 1000)}:R>`;
+                        `✍️ *Relator Responsável:* <@${interaction.user.id}> — <t:${Math.floor(Date.now() / 1000)}:R>`;
 
                     // Envia o texto formatado diretamente no canal de resultados de forma segura
                     if (canalResultados) {
