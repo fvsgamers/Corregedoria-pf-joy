@@ -306,6 +306,7 @@ module.exports = {
                                 `**QRA:** <@${idMembro}>\n` +
                                 `**MOTIVO:** Caso corregedoria #${numeroFinalDoCaso}\n` +
                                 `**ADVERTÊNCIA APLICADA:** ${cargosMencionadosString}\n` +
+                                `**TEMPO DE VIGÊNCIA:**\n${temposAdvsMarcadas}\n` +
                                 `**RESPONSÁVEL:** ${interaction.user}`;
 
                             await canalLogsEspecifico.send({ content: textoLogSimplificado }).catch(err => console.error("Erro ao enviar mensagem de log:", err));
