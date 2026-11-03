@@ -11,25 +11,29 @@
       "label": "Advertência Verbal", 
       "description": "Aplicação de aviso verbal regulamentar.", 
       "value": "1394767862174060705",
-      "emoji": "💬"
+      "emoji": "💬",
+      "tempo": "Vigência de 7 dias" 
     },
     { 
       "label": "Advertência Escrita Nível 1", 
       "description": "Primeiro aviso formal registrado em ficha funcional.", 
       "value": "1394767901218836521",
-      "emoji": "📝"
+      "emoji": "📝",
+      "tempo": "Vigência de 10 dias"
     },
     { 
       "label": "Advertência Geral Nível 2", 
       "description": "Sanção por reincidência formal de conduta.", 
       "value": "1394767944176631969",
-      "emoji": "⚠️"
+      "emoji": "⚠️",
+      "tempo": "Vigência de 15 dias"
     },
     { 
       "label": "Suspensão Administrativa", 
       "description": "Afastamento imediato e temporário das funções.", 
       "value": "1511367174307188866",
-      "emoji": "🚫"
+      "emoji": "🚫",
+      "tempo": "Ficha sob análise técnica / Sujeito a Desligamento"
     }
   ]
 }
