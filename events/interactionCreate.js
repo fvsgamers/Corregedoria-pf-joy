@@ -118,7 +118,7 @@ module.exports = {
                         `### ⚖️ REVOGAÇÃO DEFERIDA + #${numeroFinalDoCaso}\n` +
                         `> **STATUS JURÍDICO:** SENTENÇA REFORMADA (PUNIÇÃO REVOGADA)\n\n` +
                         `A Corregedoria Geral, após revisar a contestação submetida pelo colaborador, determinou o **DEFERIMENTO** do pedido. As sanções anteriores foram anuladas e removidas de sua ficha funcional.\n\n` +
-                        `👤 **Cidadão Beneficiado:** <@${idMembro}>\n` +
+                        `👤 **Cidadão Beneficiado:** <@${interaction.user.id}>\n` +
                         `❌ **Sanção Retirada:** <@&${dadosCaso.cargoParaRemover}>\n\n` +
                         `✍ *Corregedor Responsável:* <@${interaction.user.id}> — <t:${Math.floor(Date.now() / 1000)}:R>`;
 
