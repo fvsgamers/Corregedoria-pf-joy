@@ -521,9 +521,24 @@ module.exports = {
                 if (canalAuditoria) await canalAuditoria.send({ content: `📁 **Histórico de Arquivamento:** Caso \`#${numeroFinalDoCaso}\` finalizado por ${interaction.user}.`, files: [{ attachment: bufferTexto, name: `transcript-caso-${numeroFinalDoCaso}.txt` }] });
             } catch (errTranscript) { console.error(errTranscript); }
 
-            await interaction.update({ content: `🔒 **Caso Deferido com Sucesso!** Veredicto publicado, justificativa anexada e histórico salvo.\n⚠️ *Este canal será permanentemente deletado em 10 segundos.*`, embeds: [], components: [] });
+                        // =====================================================================
+            // 🔒 FECHAMENTO CORRIGIDO PARA FORMULÁRIOS (MODAL)
+            // =====================================================================
+            // Envia a resposta final confirmando o sucesso e iniciando a contagem de 10s
+            await interaction.reply({ 
+                content: `🔒 **Caso Deferido com Sucesso!** Veredicto publicado, justificativa anexada e histórico salvo.\n⚠️ *Este canal será permanentemente deletado em 10 segundos.*`, 
+                embeds: [], 
+                components: [] 
+            }).catch(() => {});
+
             memoriaFechamento.delete(channelId);
-            return setTimeout(() => interaction.channel.delete().catch(() => {}), 10000);
+            
+            // Inicia o cronômetro nativo de 10 segundos para deletar o canal do ticket
+            return setTimeout(() => {
+                interaction.channel.delete().catch(() => {});
+            }, 10000);
+            // =====================================================================
+
         }
     },
 };
