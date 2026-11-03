@@ -5,7 +5,7 @@ const config = require('../config.json');
 
 // Definição dos canais e categorias oficiais enviados por você
 const ID_CANAL_RESULTADOS = "1529134537018441738"; 
-//const ID_CATEGORIA_TICKETS = "1565178591820386314";
+const ID_CATEGORIA_TICKETS = "1565178591820386314";
 const CAMINHO_CONTADOR = path.join(__dirname, '../contador.txt');
 
 // Banco temporário em memória para salvar as etapas de fechamento de cada canal
@@ -101,7 +101,7 @@ module.exports = {
                     let canalResultados = guild.channels.cache.get(ID_CANAL_RESULTADOS);
                     const numeroFinalDoCaso = obterProximoCaso();
                     const ID_CANAL_TRANSCRIPTS = "1565194110199930971";
-                    const ID_CARGO_GERAL_ADV = "13947740627062874"; 
+                    //const ID_CARGO_GERAL_ADV = "13947740627062874"; 
 
                     const idMembro = dadosCaso.envolvidos[0];
                                         try {
@@ -120,7 +120,7 @@ module.exports = {
                             }
 
                             // 3. Remove o cargo de advertência geral do servidor
-                            await membroAlvo.roles.remove(ID_CARGO_GERAL_ADV).catch(() => {});
+                            //await membroAlvo.roles.remove(ID_CARGO_GERAL_ADV).catch(() => {});
                         }
                     } catch (err) { 
                         console.error("Erro geral ao processar remoção de cargos na revogação:", err); 
@@ -287,7 +287,7 @@ module.exports = {
                 const canalCriado = await guild.channels.create({
                     name: nomeCanal,
                     type: 0,
-                    //parent: ID_CATEGORIA_TICKETS,
+                    parent: ID_CATEGORIA_TICKETS,
                     permissionOverwrites: regrasPermissao
                 });
 
@@ -428,33 +428,39 @@ module.exports = {
             
         }
                 // --- 4. RECEBIMENTO DO FORMULÁRIO (MODAL) ---
+                // =====================================================================
+        // 🔒 FIX DEFINITIVO: MODAL COM DEFERREPLY PARA ELIMINAR O ERRO DE TEMPO
+        // =====================================================================
         if (interaction.isModalSubmit() && interaction.customId === 'modal_motivo_punicao') {
-            const { channelId, guild, values } = interaction;
-            const dadosCaso = memoriaFechamento.get(channelId);
-            if (!dadosCaso) return interaction.reply({ content: "❌ Dados do caso expiraram ou não foram encontrados.", ephemeral: true });
+            const { channelId, guild } = interaction;
+            
+            // 1. Avisa IMEDIATAMENTE o Discord que o formulário foi recebido (Evita o erro de tempo)
+            await interaction.deferReply().catch(() => {});
 
-            // Pega o texto obrigatório digitado pelo corregedor
+            const dadosCaso = memoriaFechamento.get(channelId);
+            if (!dadosCaso) {
+                return interaction.editReply({ content: "❌ Dados do caso expiraram ou não foram encontrados." });
+            }
+
+            // Captura o motivo obrigatório do formulário
             const motivoDigitado = interaction.fields.getTextInputValue('txt_motivo_detalhado');
 
             let canalResultados = guild.channels.cache.get(ID_CANAL_RESULTADOS);
             if (!canalResultados) {
-                try { canalResultados = await guild.channels.fetch(ID_CANAL_RESULTADOS); } catch (e) {
+                try { 
+                    canalResultados = await guild.channels.fetch(ID_CANAL_RESULTADOS); 
+                } catch (e) {
                     canalResultados = guild.channels.cache.find(c => c.name === "resultados-corregedoria" || c.name === "logs-resultados");
                 }
             }
 
-            if (!canalResultados) return interaction.reply({ content: "❌ Erro: O canal de resultados não pôde ser localizado.", ephemeral: true });
+            if (!canalResultados) {
+                return interaction.editReply({ content: "❌ Erro: O canal de resultados não pôde ser localizado." });
+            }
 
             const numeroFinalDoCaso = obterProximoCaso();
-            const ID_CARGO_GERAL_ADV = "13947740627062874"; 
+            //const ID_CARGO_GERAL_ADV = "13947740627062874"; 
             const ID_CANAL_TRANSCRIPTS = "1565194110199930971";
-
-            const dicionarioAdvs = {
-                "1394767862174060705": "Advertência Verbal (Vigência Obrigatória: 7 dias)",
-                "1394767901218836521": "Advertência Escrita Nível 1 (Vigência obrigatória: 10 dias corridos)",
-                "1394767944176631969": "Advertência Geral Nível 2 (Vigência obrigatória: 15 dias corridos)",
-                "1511367174307188866": "Suspensão de Atividades Administrativas (Ficha sob análise técnica, sujeito a desligamento imediato)"
-            };
 
             const cargosMarcados = dadosCaso.cargosSelecionados || [];
 
@@ -462,45 +468,45 @@ module.exports = {
                 try {
                     const membroAlvo = await guild.members.fetch(idMembro).catch(() => null);
                     if (membroAlvo) {
-                        await membroAlvo.roles.add(ID_CARGO_GERAL_ADV).catch(() => {});
+                        //await membroAlvo.roles.add(ID_CARGO_GERAL_ADV).catch(() => {});
                         for (const idCargoPunicao of cargosMarcados) {
                             await membroAlvo.roles.add(idCargoPunicao).catch(() => {});
                         }
                     }
-                } catch (err) { console.error(err); }
+                } catch (err) { 
+                    console.error(`Falha ao setar cargos no membro ${idMembro}:`, err); 
+                }
 
                 const cargosMencionadosString = cargosMarcados.length > 0 
                     ? cargosMarcados.map(id => `<@&${id}>`).join(', ') 
-                    : `<@&${ID_CARGO_GERAL_ADV}>`;
+                    : `Nenhuma Punição Aplicada`;
 
                 const temposAdvsMarcadas = cargosMarcados.length > 0
                     ? cargosMarcados.map(id => {
                         const configPunicao = config.opcoesPunicao.find(o => o.value === id);
                         return configPunicao ? `• <@&${id}>: *${configPunicao.tempo}*` : '';
                       }).filter(t => t !== '').join('\n')
-                    : `• <@&${ID_CARGO_GERAL_ADV}>: *Tempo padrão do regimento*`;
+                    : `• Nenhum Tempo Registrado`;
 
-                // TEXTO OFICIAL COM O MOTIVO INSERIDO
                 const textoMensagem = 
                     `### ⚖️ DEFERIDO + #${numeroFinalDoCaso}\n` +
                     `> **STATUS JURÍDICO:** SENTENÇA DEFERIDA (PROCEDENTE)\n\n` +
-                    `O Departamento de Controle Interno e Corregedoria Geral concluiu a avaliação regulamentar do presente protocolo. Com base no acervo probatório e na apuração, foi constatado desvio formal de conduta.\n\n` +
+                    `O Departamento de Controle Interno e Corregedoria Geral concluiu a avaliação regulamentar do presente protocolo de ocorrência. Com base no acervo probatório submetido, foi constatado desvio formal de conduta administrativa.\n\n` +
                     `👤 **Infrator Penalizado:** <@${idMembro}>\n\n` +
                     `📝 **Motivação Técnico-Regulamentar:**\n> ${motivoDigitado}\n\n` +
                     `⚠️ **Sanções Regimentais Aplicadas:**\n${cargosMencionadosString}\n\n` +
-                    `*Determina-se a averbação imediata deste veredicto na ficha funcional do servidor.*\n\n` +
+                    `*Determina-se a averbação imediata deste veredicto na ficha funcional do servidor. Notificação processual expedida.*\n\n` +
                     `✍️ *Relator Responsible:* <@${interaction.user.id}> — <t:${Math.floor(Date.now() / 1000)}:R>`;
 
                 await canalResultados.send({ content: `🔔 **Citação Processual:** <@${idMembro}>\n\n${textoMensagem}` }).catch(err => console.error(err));
 
-                // SEU BLOCO ESPECÍFICO DE LOG ATUALIZADO COM O CAMPO DE TEXTO DO MOTIVO
                 try {
                     const canalLogsEspecifico = await guild.channels.fetch('1529134407330562239').catch(() => null);
                     if (canalLogsEspecifico) {
                         const textoLogSimplificado = 
                             `**QRA:** <@${idMembro}>\n` +
                             `**MOTIVO HISTÓRICO:** Caso corregedoria #${numeroFinalDoCaso}\n` +
-                            `**MOTIVO:** ${motivoDigitado}\n` + // O novo campo inserido aqui!
+                            `**MOTIVO:** ${motivoDigitado}\n` + 
                             `**ADVERTÊNCIA APLICADA:** ${cargosMencionadosString}\n` +
                             `**TEMPO DE VIGÊNCIA:** ${temposAdvsMarcadas}\n` +
                             `**RESPONSÁVEL:** <@${interaction.user.id}>`;
@@ -510,35 +516,38 @@ module.exports = {
                 } catch (err) { console.error(err); }
             }
 
-            // Transcripts e encerramento
             try {
                 const mensagens = await interaction.channel.messages.fetch({ limit: 100 });
                 let conteudoTexto = `=== TRANSCRIPT OFICIAL DE ATENDIMENTO - CASO #${numeroFinalDoCaso} ===\nMotivo da Decisão: ${motivoDigitado}\n\n`;
                 const msgOrdenadas = mensagens.reverse();
-                msgOrdenadas.forEach(m => { conteudoTexto += `[${m.createdAt.toLocaleTimeString('pt-BR')}] ${m.author.tag}: ${m.content}\n`; });
+                msgOrdenadas.forEach(m => { 
+                    conteudoTexto += `[${m.createdAt.toLocaleTimeString('pt-BR')}] ${m.author.tag}: ${m.content}\n`; 
+                });
                 const bufferTexto = Buffer.from(conteudoTexto, 'utf-8');
-                const canalAuditoria = guild.channels.cache.get(ID_CANAL_TRANSCRIPTS);
-                if (canalAuditoria) await canalAuditoria.send({ content: `📁 **Histórico de Arquivamento:** Caso \`#${numeroFinalDoCaso}\` finalizado por ${interaction.user}.`, files: [{ attachment: bufferTexto, name: `transcript-caso-${numeroFinalDoCaso}.txt` }] });
+                const canalAuditoria = guild.channels.cache.get(ID_CANAL_TRANSCRIPTS) || await guild.channels.fetch(ID_CANAL_TRANSCRIPTS).catch(() => null);
+                if (canalAuditoria) {
+                    await canalAuditoria.send({ 
+                        content: `📁 **Histórico de Arquivamento:** Caso \`#${numeroFinalDoCaso}\` finalizado por ${interaction.user}.`, 
+                        files: [{ attachment: bufferTexto, name: `transcript-caso-${numeroFinalDoCaso}.txt` }] 
+                    }).catch(err => console.error(err));
+                }
             } catch (errTranscript) { console.error(errTranscript); }
 
-                        // =====================================================================
-            // 🔒 FECHAMENTO CORRIGIDO PARA FORMULÁRIOS (MODAL)
-            // =====================================================================
-            // Envia a resposta final confirmando o sucesso e iniciando a contagem de 10s
-            await interaction.reply({ 
+            // 2. Modifica a resposta inicial (Diferente de antes, agora usamos editReply por causa do deferReply)
+            await interaction.editReply({ 
                 content: `🔒 **Caso Deferido com Sucesso!** Veredicto publicado, justificativa anexada e histórico salvo.\n⚠️ *Este canal será permanentemente deletado em 10 segundos.*`, 
                 embeds: [], 
                 components: [] 
             }).catch(() => {});
 
             memoriaFechamento.delete(channelId);
-            
-            // Inicia o cronômetro nativo de 10 segundos para deletar o canal do ticket
-            return setTimeout(() => {
-                interaction.channel.delete().catch(() => {});
-            }, 10000);
-            // =====================================================================
 
+            // 3. Executa a deleção limpa após 10 segundos
+            setTimeout(() => {
+                if (interaction.channel) {
+                    interaction.channel.delete().catch(() => {});
+                }
+            }, 10000);
         }
     },
 };
