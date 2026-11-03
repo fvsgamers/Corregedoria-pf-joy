@@ -179,7 +179,7 @@ module.exports = {
                     .setTimestamp();
             }
 
-            if (nomeCanal) {
+            if (nomeCanal)             if (nomeCanal) {
                 const regrasPermissao = [
                     { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
                     { id: user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles] },
@@ -200,41 +200,37 @@ module.exports = {
 
                     await interaction.reply({ content: `✅ Seu canal administrativo foi aberto com sucesso em ${canalCriado}`, ephemeral: true });
 
-                                // =====================================================================
-                    // =====================================================================
-// ⚖️ CORREÇÃO DEFINITIVA: COMPONENTES SEPARADOS EM LINHAS (ROWS)
-// =====================================================================
-const rowFechar = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-        .setCustomId('btn_fechar_ticket')
-        .setLabel('🔒 Fechar Ticket')
-        .setStyle(ButtonStyle.Secondary)
-);
+                    // 1. Linha com o botão original de fechar ticket
+                    const rowFechar = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId('btn_fechar_ticket').setLabel('🔒 Fechar Ticket').setStyle(ButtonStyle.Secondary)
+                    );
 
-const rowMenuCitar = new ActionRowBuilder().addComponents(
-    new UserSelectMenuBuilder()
-        .setCustomId('citar_participantes')
-        .setPlaceholder('⚖️ Selecione até 10 pessoas para a defesa')
-        .setMinValues(1)
-        .setMaxValues(10)
-);
+                    // 2. Condicional para incluir o menu APENAS nos canais de corregedoria
+                    const componentesEnvio = [rowFechar];
+                    if (customId === 'btn_corregedoria') {
+                        const rowMenuCitar = new ActionRowBuilder().addComponents(
+                            new UserSelectMenuBuilder()
+                                .setCustomId('citar_participantes')
+                                .setPlaceholder('⚖️ Selecione até 10 pessoas para a defesa')
+                                .setMinValues(1)
+                                .setMaxValues(10)
+                        );
+                        componentesEnvio.push(rowMenuCitar);
+                    }
 
-// Envia a mensagem original adicionando as duas linhas de componentes separadas
-await canalCriado.send({ 
-    content: mencaoCargo, 
-    embeds: [embedTicket], 
-    components: [rowFechar, rowMenuCitar] 
-});
-// =====================================================================
+                    // Envia a mensagem com a embed vermelha/azul e os componentes ajustados sem duplicações
+                    await canalCriado.send({ 
+                        content: mencaoCargo, 
+                        embeds: [embedTicket], 
+                        components: componentesEnvio 
+                    });
 
-                    // =====================================================================
-
-                    await canalCriado.send({ content: mencaoCargo, embeds: [embedTicket], components: [rowFechar] });
                 } catch (error) {
                     console.error("Erro ao criar canal na categoria:", error);
                     await interaction.reply({ content: "❌ Erro: Verifique se o Bot possui a permissão de 'Gerenciar Canais' na categoria alvo.", ephemeral: true });
                 }
             }
+
         }
 
         // --- 3. GERENCIAMENTO DE SELEÇÃO DE MENUS ---
