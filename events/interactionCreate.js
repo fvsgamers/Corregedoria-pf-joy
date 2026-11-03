@@ -221,7 +221,7 @@ module.exports = {
 
                         // Log Simplificado na Corregedoria (Revogação Rejeitada)
                         try {
-                            const canalLogsEspecifico = await guild.channels.fetch('1567030249806372954').catch(() => null);
+                            const canalLogsEspecifico = await guild.channels.fetch('1538901609528950874').catch(() => null);
                             if (canalLogsEspecifico) {
                                 const textoLogSimplificado = 
                                     `**QRA:** <@${idMembro}>\n` +
