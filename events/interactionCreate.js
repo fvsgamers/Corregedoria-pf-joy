@@ -281,6 +281,14 @@ module.exports = {
                         ? values.map(id => `<@&${id}>`).join(', ') 
                         : `<@&${ID_CARGO_GERAL_ADV}>`;
 
+                    // Puxa dinamicamente do config.json os tempos dos cargos que foram selecionados pelo corregedor
+                    const temposAdvsMarcadas = values && values.length > 0
+                        ? values.map(id => {
+                            const configPunicao = config.opcoesPunicao.find(o => o.value === id);
+                            return configPunicao ? `• <@&${id}>: *${configPunicao.tempo}*` : '';
+                          }).filter(t => t !== '').join('\n')
+                        : `• <@&${ID_CARGO_GERAL_ADV}>: *Tempo padrão do regimento*`;
+
                     // 2. TEXTO ELABORADO DE DEFERIMENTO (SEM EMBED)
                     const textoMensagem = 
                         `### ⚖️ DEFERIDO + #${numeroFinalDoCaso}\n` +
