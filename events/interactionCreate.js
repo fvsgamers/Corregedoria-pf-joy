@@ -87,18 +87,25 @@ module.exports = {
                 const rowAdvs = new ActionRowBuilder().addComponents(menuAdvs);
                 return interaction.update({ content: '🚨 **Selecione as punições aplicáveis abaixo:**', embeds: [], components: [rowAdvs] });
             }
-
-                        // BOTÃO: Veredicto Indeferido (Texto Elaborado + Transcript + Delete em 10s)
+                        // =====================================================================
+            // 🔒 RETORNO AO ORIGINAL: VEREDICTO INDEFERIDO SEGURADO
+            // =====================================================================
             if (customId === 'btn_final_indeferido') {
                 const dadosCaso = memoriaFechamento.get(channelId);
                 const canalResultados = guild.channels.cache.get(ID_CANAL_RESULTADOS);
                 const numeroFinalDoCaso = obterProximoCaso();
                 const ID_CANAL_TRANSCRIPTS = "1565194110199930971";
 
+                // Atualiza visualmente o canal na hora para o usuário ver que funcionou
+                await interaction.update({ 
+                    content: `🔒 **Caso Indeferido com Sucesso!** Publicando resultados e gerando relatórios...\n⚠️ *Este canal será permanentemente deletado em 10 segundos.*`, 
+                    embeds: [], 
+                    components: [] 
+                }).catch(() => {});
+
                 if (dadosCaso && canalResultados) {
                     const listaMencionados = dadosCaso.envolvidos.map(id => `<@${id}>`).join(', ');
 
-                    // TEXTO ELABORADO DE INDEFERIMENTO (SEM EMBED)
                     const textoMensagemIndeferido = 
                         `### 🏛️ INDEFERIDO + #${numeroFinalDoCaso}\n` +
                         `> **STATUS JURÍDICO:** SENTENÇA INDEFERIDA (IMPROCEDENTE)\n\n` +
@@ -108,13 +115,12 @@ module.exports = {
                         `A postulação não reuniu condições mínimas de admissibilidade, sendo rejeitada por **total ausência de elementos probatórios concretos** (falta de filmagens claras ou evidências inequívocas) ou por incompatibilidade técnica com o regimento disciplinar de condutas vigentes na cidade.\n\n` +
                         `✍️ *Relator Responsável:* \`${interaction.user.tag}\` — <t:${Math.floor(Date.now() / 1000)}:R>`;
 
-                    // Envia o texto formatado diretamente no canal de resultados com a notificação
                     await canalResultados.send({ 
                         content: `🔔 **Notificação de Arquivamento:** ${listaMencionados}\n\n${textoMensagemIndeferido}` 
-                    });
+                    }).catch(err => console.error("Erro canal resultados:", err));
                 }
 
-                // GERADOR DE TRANSCRIPT PARA CASO INDEFERIDO
+                // Gerador de Transcript roda em segundo plano sem travar o botão
                 try {
                     const mensagens = await interaction.channel.messages.fetch({ limit: 100 });
                     let conteudoTexto = `=== TRANSCRIPT OFICIAL DE ATENDIMENTO - CASO INDEFERIDO #${numeroFinalDoCaso} ===\n`;
@@ -133,14 +139,14 @@ module.exports = {
                         await canalAuditoria.send({ 
                             content: `📁 **Histórico de Arquivamento:** Caso \`#${numeroFinalDoCaso}\` arquivado/indeferido por ${interaction.user}.`,
                             files: [{ attachment: bufferTexto, name: nomeArquivo }]
-                        });
+                        }).catch(err => console.error("Erro envio transcript:", err));
                     }
-                } catch (e) { console.error(e); }
+                } catch (e) { console.error("Erro transcript:", e); }
 
-                await interaction.update({ content: `🔒 **Caso Indeferido com Sucesso!** Relatório gerado e enviado para a auditoria.\n⚠️ *Este canal será permanentemente deletado em 10 segundos.*`, embeds: [], components: [] });
                 memoriaFechamento.delete(channelId);
                 return setTimeout(() => interaction.channel.delete().catch(() => {}), 10000);
             }
+
 
             // --- LÓGICA DE CRIAÇÃO DE NOVOS TICKETS PRIVADOS ---
             let nomeCanal = "";
@@ -237,58 +243,47 @@ module.exports = {
         if (interaction.isAnySelectMenu()) {
                         // =====================================================================
             // ⚖️ ENCAIXE: MENU DE SELEÇÃO PARA CITAR PARTICIPANTES DA DEFESA
-            // =====================================================================
                         // =====================================================================
-            // ⚖️ TRATAMENTO ATUALIZADO: MENU DE SELEÇÃO PARA CITAR PARTICIPANTES
+            // ⚖️ TRATAMENTO SEGURO: MENU DE SELEÇÃO PARA CITAR PARTICIPANTES
             // =====================================================================
             if (customId === 'citar_participantes') {
-                // 1. Avisa o Discord que o bot está processando para NÃO dar erro de tempo
-                await interaction.deferReply().catch(() => {});
-
-                // IDs dos cargos autorizados do config
-                const CARGOS_PERMITIDOS_IDS = config.idCargoCorregedor || []; 
-                
-                // Verificação de segurança (Verifica por ID ou se tem o nome do cargo)
+                // Verificação direta por nome para evitar falhas de leitura do config
                 const temPermissao = interaction.member.roles.cache.some(role => 
-                    CARGOS_PERMITIDOS_IDS.includes(role.id) || 
                     role.name.toLowerCase() === 'corregedoria' || 
                     role.name.toLowerCase() === 'admin'
                 ) || interaction.member.permissions.has(PermissionFlagsBits.Administrator);
 
-                // Se não for Corregedor ou Admin, bloqueia usando editReply
+                // Bloqueio imediato se não for da equipe
                 if (!temPermissao) {
-                    return await interaction.editReply({
-                        content: `❌ Apenas membros da **Corregedoria** ou **Administradores** podem adicionar participantes a este ticket.`
-                    });
+                    return await interaction.reply({
+                        content: `❌ Apenas membros da **Corregedoria** ou **Administradores** podem adicionar participantes a este ticket.`,
+                        ephemeral: true
+                    }).catch(() => {});
                 }
 
-                // Coleta os usuários selecionados
+                // Dá a resposta imediata para o Discord não derrubar a conexão por tempo
+                await interaction.reply({ content: `🔄 Processando permissões e enviando a convocação...`, ephemeral: true }).catch(() => {});
+
                 const usuariosSelecionados = interaction.users;
                 const mencoes = usuariosSelecionados.map(user => `<@${user.id}>`).join(', ');
 
-                // Adiciona permissão para cada um conseguir ver e digitar no canal do ticket de forma assíncrona segura
-                try {
-                    for (const [id, user] of usuariosSelecionados) {
-                        await interaction.channel.permissionOverwrites.create(id, {
-                            ViewChannel: true,
-                            SendMessages: true,
-                            ReadMessageHistory: true
-                        }).catch(err => console.error(`Erro ao dar permissão ao usuário ${id}:`, err));
-                    }
-                } catch (error) {
-                    console.error("Erro ao aplicar as permissões do canal:", error);
+                // Altera as permissões em segundo plano
+                for (const [id, user] of usuariosSelecionados) {
+                    await interaction.channel.permissionOverwrites.create(id, {
+                        ViewChannel: true,
+                        SendMessages: true,
+                        ReadMessageHistory: true
+                    }).catch(err => console.error(`Erro permissão:`, err));
                 }
 
                 const timestamp = Math.floor(Date.now() / 1000);
                 
-                // Envia a convocação formal usando editReply para concluir a interação pendente
-                return await interaction.editReply({
+                // Envia a convocação em texto aberto no canal
+                return await interaction.channel.send({
                     content: `✍️ *Participante(s) Convocado(s):* ${mencoes} — por <@${interaction.user.id}> em <t:${timestamp}:R>\n\n` +
                              `⚠️ **Prezado(a)(s), você foi citado nesta corregedoria.** Fica por meio deste ato convocado(a) a apresentar sua defesa legal mediante os fatos e evidências apresentados na denúncia deste ticket.`
-                });
+                }).catch(err => console.error("Erro ao enviar texto no canal:", err));
             }
-            // =====================================================================
-
             // =====================================================================
 
             const { customId, values, channelId, guild } = interaction;
