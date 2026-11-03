@@ -48,20 +48,6 @@ module.exports = {
         // --- 2. INTERAÇÃO COM BOTÕES ---
         if (interaction.isButton()) {
             const { guild, user, customId, channelId } = interaction;
-        // ==========================================
-        // BOTÃO: Iniciar o processo de fechamento do chamado
-        // ==========================================
-        if (customId === 'btn_fechar_ticket') {
-            // Verifica se o usuário tem algum dos IDs das listas de Corregedor ou Staff, ou se é Administrador
-            const temAcesso = config.idCargoCorregedor.some(id => interaction.member.roles.cache.has(id)) || 
-                              config.idCargoStaff.some(id => interaction.member.roles.cache.has(id)) || 
-                              interaction.member.permissions.has(PermissionFlagsBits.Administrator);
-        
-            if (!temAcesso) {
-                return interaction.reply({ content: "❌ Apenas membros da Corregedoria ou Staff podem definir o veredicto deste caso.", ephemeral: true });
-            }
-
-            
             // BOTÃO: Iniciar o processo de fechamento do chamado
             if (customId === 'btn_fechar_ticket') {
                 // Verifica se o usuário tem algum dos IDs das listas de Corregedor ou Staff, ou se é Administrador
@@ -362,5 +348,5 @@ module.exports = {
             }
 
         }
-    }
+    },
 };
