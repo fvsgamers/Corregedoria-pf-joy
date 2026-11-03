@@ -4,7 +4,7 @@ const path = require('path');
 const config = require('../config.json');
 
 // Definição dos canais e categorias oficiais enviados por você
-//const ID_CANAL_RESULTADOS = "1529134537018441738"; 
+const ID_CANAL_RESULTADOS = "1567030249806372954"; 
 const ID_CATEGORIA_TICKETS = "1567021524756729856";
 const CAMINHO_CONTADOR = path.join(__dirname, '../contador.txt');
 
