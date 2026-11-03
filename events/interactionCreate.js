@@ -4,8 +4,8 @@ const path = require('path');
 const config = require('../config.json');
 
 // Definição dos canais e categorias oficiais enviados por você
-const ID_CANAL_RESULTADOS = "1529134537018441738"; 
-const ID_CATEGORIA_TICKETS = "1565178591820386314";
+//const ID_CANAL_RESULTADOS = "1529134537018441738"; 
+const ID_CATEGORIA_TICKETS = "1567021524756729856";
 const CAMINHO_CONTADOR = path.join(__dirname, '../contador.txt');
 
 // Banco temporário em memória para salvar as etapas de fechamento de cada canal
@@ -100,7 +100,7 @@ module.exports = {
                 if (dadosCaso && dadosCaso.isRevogacao) {
                     let canalResultados = guild.channels.cache.get(ID_CANAL_RESULTADOS);
                     const numeroFinalDoCaso = obterProximoCaso();
-                    const ID_CANAL_TRANSCRIPTS = "1565194110199930971";
+                    const ID_CANAL_TRANSCRIPTS = "1567025909444120627";
                     //const ID_CARGO_GERAL_ADV = "13947740627062874"; 
 
                     const idMembro = dadosCaso.envolvidos[0];
@@ -140,7 +140,7 @@ module.exports = {
 
                                         // ENVIO DO LOG SIMPLIFICADO DE REVOGAÇÃO DEFERIDA (ACEITA)
                     try {
-                        const canalLogsRevogacao = await guild.channels.fetch('1529134489341788421').catch(() => null);
+                        const canalLogsRevogacao = await guild.channels.fetch('1567021252152008878').catch(() => null);
                         if (canalLogsRevogacao) {
                             const textoLogRevogacao = 
                                 `### 📝 REVOGAÇÃO DEFERIDA (PUNIÇÃO RETIRADA)\n` +
@@ -188,7 +188,7 @@ module.exports = {
                 const dadosCaso = memoriaFechamento.get(channelId);
                 const canalResultados = guild.channels.cache.get(ID_CANAL_RESULTS) || guild.channels.cache.get(ID_CANAL_RESULTADOS);
                 const numeroFinalDoCaso = obterProximoCaso();
-                const ID_CANAL_TRANSCRIPTS = "1565194110199930971";
+                const ID_CANAL_TRANSCRIPTS = "1567025909444120627";
 
                 if (dadosCaso && canalResultados) {
                     const idMembro = dadosCaso.envolvidos[0];
@@ -460,7 +460,7 @@ module.exports = {
 
             const numeroFinalDoCaso = obterProximoCaso();
             //const ID_CARGO_GERAL_ADV = "13947740627062874"; 
-            const ID_CANAL_TRANSCRIPTS = "1565194110199930971";
+            const ID_CANAL_TRANSCRIPTS = "1567025909444120627";
 
             const cargosMarcados = dadosCaso.cargosSelecionados || [];
 
@@ -501,7 +501,7 @@ module.exports = {
                 await canalResultados.send({ content: `🔔 **Citação Processual:** <@${idMembro}>\n\n${textoMensagem}` }).catch(err => console.error(err));
 
                 try {
-                    const canalLogsEspecifico = await guild.channels.fetch('1529134407330562239').catch(() => null);
+                    const canalLogsEspecifico = await guild.channels.fetch('1538901609528950874').catch(() => null);
                     if (canalLogsEspecifico) {
                         const textoLogSimplificado = 
                             `**QRA:** <@${idMembro}>\n` +
