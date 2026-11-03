@@ -362,5 +362,5 @@ module.exports = {
             }
 
         }
-    },
+    }
 };
