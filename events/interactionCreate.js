@@ -211,9 +211,9 @@ module.exports = {
 
                     });
 
-                    await interaction.reply({ content: `✅ Seu canal administrativo foi aberto com sucesso em ${canalCriado}`, ephemeral: true });
+                                        await interaction.reply({ content: `✅ Seu canal administrativo foi aberto com sucesso em ${canalCriado}`, ephemeral: true });
 
-                                const rowFechar = new ActionRowBuilder().addComponents(
+                    const rowFechar = new ActionRowBuilder().addComponents(
                         new ButtonBuilder().setCustomId('btn_fechar_ticket').setLabel('🔒 Fechar Ticket').setStyle(ButtonStyle.Secondary)
                     );
                     await canalCriado.send({ content: mencaoCargo, embeds: [embedTicket], components: [rowFechar] });
@@ -222,7 +222,7 @@ module.exports = {
                     await interaction.reply({ content: "❌ Erro: Verifique se o Bot possui a permissão de 'Gerenciar Canais' na categoria alvo.", ephemeral: true });
                 }
             }
-        }
+        } // FIM DO BLOCO DE BOTÕES (isButton)
 
         // --- 3. GERENCIAMENTO DE SELEÇÃO DE MENUS ---
         if (interaction.isAnySelectMenu()) {
@@ -245,7 +245,7 @@ module.exports = {
                 return interaction.update({ embeds: [embedEscolha], components: [rowEscolhas] });
             }
 
-                        // Etapa 2: Processa a seleção múltipla de advertências, gera Transcript e deleta em 10s
+            // Etapa 2: Processa a seleção múltipla de advertências, gera Transcript e deleta em 10s
             if (customId === 'menu_advertencias_multiplas') {
                 const dadosCaso = memoriaFechamento.get(channelId);
                 if (!dadosCaso) return interaction.reply({ content: "❌ Erro nas etapas de fechamento. Reabra o menu.", ephemeral: true });
@@ -262,15 +262,6 @@ module.exports = {
                 const numeroFinalDoCaso = obterProximoCaso();
                 const ID_CARGO_GERAL_ADV = "13947740627062874"; 
                 const ID_CANAL_TRANSCRIPTS = "1565194110199930971";
-
-                const dicionarioAdvs = {
-                    "1394767862174060705": "Advertência Verbal (Vigência Obrigatória: 7 dias)",
-                    "1394767901218836521": "Advertência Escrita Nível 1 (Vigência obrigatória: 10 dias corridos)",
-                    "1394767944176631969": "Advertência Geral Nível 2 (Vigência obrigatória: 15 dias corridos)",
-                    "1511367174307188866": "Suspensão de Atividades Administrativas (Ficha sob análise técnica, sujeito a desligamento imediato)"
-                };
-
-                const textoAdvsMarcadas = values.map(id => `• ${dicionarioAdvs[id] || id}`).join('\n');
 
                 // 1. APLICAÇÃO DOS CARGOS INDIVIDUAIS NO DISCORD
                 for (const idMembro of dadosCaso.envolvidos) {
@@ -289,7 +280,7 @@ module.exports = {
                         console.error(`Falha ao setar cargos no membro ${idMembro}:`, err);
                     }
                 
-                    // Geração dinâmica das menções dos cargos para evitar que o bot quebre se a variável antiga falhar
+                    // Geração dinâmica das menções dos cargos
                     const cargosMencionadosString = values && values.length > 0 
                         ? values.map(id => `<@&${id}>`).join(', ') 
                         : `<@&${ID_CARGO_GERAL_ADV}>`;
@@ -304,14 +295,14 @@ module.exports = {
                         `*Determina-se a averbação imediata deste veredicto na ficha funcional do servidor. Notificação processual expedida.*\n\n` +
                         `✍️ *Relator Responsável:* \`${interaction.user.tag}\` — <t:${Math.floor(Date.now() / 1000)}:R>`;
                 
-                    // Envia o texto formatado diretamente no canal de resultados de forma segura
+                    // Envia o texto diretamente no canal de resultados
                     if (canalResultados) {
                         await canalResultados.send({ 
                             content: `🔔 **Citação Processual:** <@${idMembro}>\n\n${textoMensagem}` 
                         }).catch(err => console.error("Erro ao enviar para canalResultados:", err));
                     }
                 
-                    // 3. ENVIO DO FORMATO SIMPLIFICADO PARA O CANAL DE LOGS ESPECÍFICO (PROTEGIDO)
+                    // 3. ENVIO DO FORMATO SIMPLIFICADO PARA O CANAL DE LOGS ESPECÍFICO
                     try {
                         const canalLogsEspecifico = await guild.channels.fetch('1529134407330562239').catch(() => null);
                         if (canalLogsEspecifico) {
@@ -359,7 +350,7 @@ module.exports = {
                 memoriaFechamento.delete(channelId);
                 return setTimeout(() => interaction.channel.delete().catch(() => {}), 10000);
             }
-
         }
     },
 };
+
