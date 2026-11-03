@@ -104,15 +104,27 @@ module.exports = {
                     const ID_CARGO_GERAL_ADV = "13947740627062874"; 
 
                     const idMembro = dadosCaso.envolvidos[0];
-                    try {
+                                        try {
                         const membroAlvo = await guild.members.fetch(idMembro).catch(() => null);
                         if (membroAlvo) {
-                            // Remove a advertência específica selecionada pelo usuário
-                            await membroAlvo.roles.remove(dadosCaso.cargoParaRemover).catch(() => {});
-                            // Remove o cargo de advertência geral
+                            // 1. CONVERTENDO O VALOR DA MEMÓRIA EM ARRAY CASO VENHA COMO VALOR ÚNICO
+                            const cargosParaRemover = Array.isArray(dadosCaso.cargoParaRemover) 
+                                ? dadosCaso.cargoParaRemover 
+                                : [dadosCaso.cargoParaRemover];
+
+                            // 2. ADICIONADO: REMOVE CADA UM DOS CARGOS ESPECÍFICOS DE ADVERTÊNCIA SELECIONADOS NO INÍCIO
+                            for (const idCargo of cargosParaRemover) {
+                                await membroAlvo.roles.remove(idCargo).catch(err => 
+                                    console.error(`Erro ao remover cargo específico ${idCargo}:`, err)
+                                );
+                            }
+
+                            // 3. Remove o cargo de advertência geral do servidor
                             await membroAlvo.roles.remove(ID_CARGO_GERAL_ADV).catch(() => {});
                         }
-                    } catch (err) { console.error(err); }
+                    } catch (err) { 
+                        console.error("Erro geral ao processar remoção de cargos na revogação:", err); 
+                    }
 
                     const textoMensagem = 
                         `### ⚖️ REVOGAÇÃO DEFERIDA + #${numeroFinalDoCaso}\n` +
@@ -170,9 +182,9 @@ module.exports = {
                                                     `### 🏛️ REVOGAÇÃO INDEFERIDA + #${numeroFinalDoCaso}\n` +
                         `> **STATUS JURÍDICO:** CONTESTAÇÃO REJEITADA (PUNIÇÃO MANTIDA)\n\n` +
                         `A Corregedoria Geral avaliou os fundamentos do pedido de revisão e determinou o seu **INDEFERIMENTO**. As provas funcionais aplicadas originalmente são válidas e permanecem ativas.\n\n` +
-                        `👤 **Colaborador:** <@${idMembro}>\n` +
+                        `👤 **Colaborador:** <@${interaction.user.id}>\n` +
                         `⚠️ **Manutenção da Sanção:** <@&${dadosCaso.cargoParaRemover}>\n\n` +
-                        `✍️ *Relator Responsável:* \`${interaction.user.tag}\` — <t:${Math.floor(Date.now() / 1000)}:R>`;
+                        `✍️ *Relator Responsável:* <@${interaction.user.id}> — <t:${Math.floor(Date.now() / 1000)}:R>`;
 
                     await canalResultados.send({ content: `🔔 **Notificação de Julgamento:** <@${idMembro}>\n\n${textoMensagemIndeferido}` });
                 } else {
@@ -422,7 +434,7 @@ module.exports = {
                         `👤 **Infrator Penalizado:** <@${idMembro}>\n\n` +
                         `⚠️ **Sanções Regimentais Aplicadas:**\n${cargosMencionadosString}\n\n` +
                         `*Determina-se a averbação imediata deste veredicto na ficha funcional do servidor. Notificação processual expedida.*\n\n` +
-                        `✍️ *Relator Responsible:* <@${interaction.user.id}> — <t:${Math.floor(Date.now() / 1000)}:R>`;
+                        `✍️ *Relator Responsável:* <@${interaction.user.id}> — <t:${Math.floor(Date.now() / 1000)}:R>`;
 
                     if (canalResultados) {
                         await canalResultados.send({ 
