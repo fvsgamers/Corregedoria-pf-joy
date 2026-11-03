@@ -201,20 +201,32 @@ module.exports = {
                     await interaction.reply({ content: `✅ Seu canal administrativo foi aberto com sucesso em ${canalCriado}`, ephemeral: true });
 
                                 // =====================================================================
-                    // ⚖️ ALTERAÇÃO: BOTÃO DE FECHAR + MENU DE SELEÇÃO DE PARTICIPANTES
                     // =====================================================================
-                    const botaoFechar = new ButtonBuilder()
-                        .setCustomId('btn_fechar_ticket')
-                        .setLabel('🔒 Fechar Ticket')
-                        .setStyle(ButtonStyle.Secondary);
-                    
-                    const menuCitar = new UserSelectMenuBuilder()
-                        .setCustomId('citar_participantes')
-                        .setPlaceholder('⚖️ Selecione até 10 pessoas para a defesa')
-                        .setMinValues(1)
-                        .setMaxValues(10);
-                    
-                    const rowFechar = new ActionRowBuilder().addComponents(botaoFechar, menuCitar);
+// ⚖️ CORREÇÃO DEFINITIVA: COMPONENTES SEPARADOS EM LINHAS (ROWS)
+// =====================================================================
+const rowFechar = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+        .setCustomId('btn_fechar_ticket')
+        .setLabel('🔒 Fechar Ticket')
+        .setStyle(ButtonStyle.Secondary)
+);
+
+const rowMenuCitar = new ActionRowBuilder().addComponents(
+    new UserSelectMenuBuilder()
+        .setCustomId('citar_participantes')
+        .setPlaceholder('⚖️ Selecione até 10 pessoas para a defesa')
+        .setMinValues(1)
+        .setMaxValues(10)
+);
+
+// Envia a mensagem original adicionando as duas linhas de componentes separadas
+await canalCriado.send({ 
+    content: mencaoCargo, 
+    embeds: [embedTicket], 
+    components: [rowFechar, rowMenuCitar] 
+});
+// =====================================================================
+
                     // =====================================================================
 
                     await canalCriado.send({ content: mencaoCargo, embeds: [embedTicket], components: [rowFechar] });
