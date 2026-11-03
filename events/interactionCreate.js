@@ -32,7 +32,7 @@ function obterProximoCaso() {
 module.exports = {
     name: Events.InteractionCreate,
     async execute(interaction, client) {
-        
+
         // --- 1. COMANDOS DE BARRA (/) ---
         if (interaction.isChatInputCommand()) {
             const command = client.commands.get(interaction.commandName);
@@ -44,63 +44,132 @@ module.exports = {
                 await interaction.reply({ content: 'Houve um erro ao executar esse comando!', ephemeral: true });
             }
         }
-            // --- INTERAÇÃO COM BOTÕES ---
-            if (interaction.isButton()) {
-                const { guild, user, customId, channelId } = interaction;
-            
-                // ==========================================
-                // BOTÃO: Iniciar o processo de fechamento do chamado
-                // ==========================================
-                       // --- 2. INTERAÇÃO COM BOTÕES ---
+
+        // --- 2. INTERAÇÃO COM BOTÕES ---
         if (interaction.isButton()) {
             const { guild, user, customId, channelId } = interaction;
+            // No painel inicial do ticket ou onde você cria os botões principais:
+            const btnCitar = new ButtonBuilder()
+                .setCustomId('btn_citar_envolvidos')
+                .setLabel('Citar Envolvidos')
+                .setEmoji('👤')
+                .setStyle(ButtonStyle.Primary);
+            
+            // ---------------------------------------------------------
+            
+            // Na checagem dos botões (dentro do seu evento de interação):
+
+            if (customId === 'btn_citar_envolvidos') {
+                // Cria o menu de seleção de usuários do Discord
+                const menuCitarUsuarios = new UserSelectMenuBuilder()
+                    .setCustomId('menu_citacao_abertura')
+                    .setPlaceholder('Selecione os membros que serão citados na denúncia...')
+                    .setMinValues(1)
+                    .setMaxValues(10); // Permite citar até 10 pessoas de uma vez
+            
+                const rowMenu = new ActionRowBuilder().addComponents(menuCitarUsuarios);
+            
+                // Envia o menu apenas para quem clicou (ephemeral) para não poluir o canal
+                return interaction.reply({ 
+                    content: '👇 **Selecione abaixo os usuários envolvidos para realizar a citação:**', 
+                    components: [rowMenu], 
+                    ephemeral: true 
+                });
+        // Cria o menu de seleção de usuários do Discord
+        const menuCitarUsuarios = new UserSelectMenuBuilder()
+                .setCustomId('menu_citacao_abertura')
+                .setPlaceholder('Selecione os membros que serão citados na denúncia...')
+                .setMinValues(1)
+                .setMaxValues(10); // Permite selecionar até 10 pessoas de uma vez
+    
+            const rowMenu = new ActionRowBuilder().addComponents(menuCitarUsuarios);
+    
+            // Envia o menu apenas para quem clicou (ephemeral) para não poluir o canal
+            return interaction.reply({ 
+                content: '👇 **Selecione abaixo os usuários envolvidos para realizar a citação:**', 
+                components: [rowMenu], 
+                ephemeral: true 
+            });
+        }
+        // BLOCO CITAÇÃO
+        if (interaction.isUserSelectMenu()) {
+    const { customId } = interaction;
+    
+    if (customId === 'menu_citacao_abertura') {
+        const IDsSelecionados = interaction.values; 
+        const listaMencionados = IDsSelecionados.map(id => `<@${id}>`).join(', ');
+
+        const mensagemCitacao = 
+            `### 🔔 Notificação de Citação Processual\n` +
+            `Atenção ${listaMencionados},\n` +
+            `Vocês foram formalmente citados e vinculados como envolvidos na abertura deste protocolo de denúncia (Chamado: ${interaction.channel.name}).\n\n` +
+            `*Aguardem as determinações e a coleta de dados pela Corregedoria Geral. Não respondam sem autorização.*`;
+
+        await interaction.channel.send({ content: mensagemCitacao });
+
+        return interaction.update({ 
+            content: '✅ Os membros envolvidos foram citados com sucesso no canal!', 
+            components: [] 
+        });
+    }
+}
+// FIM BLOCO CITAÇÃO //
+    
+        // ==========================================
+        // BOTÃO: Iniciar o processo de fechamento do chamado
+        // ==========================================
+        if (customId === 'btn_fechar_ticket') {
+            // Verifica se o usuário tem algum dos IDs das listas de Corregedor ou Staff, ou se é Administrador
+            const temAcesso = config.idCargoCorregedor.some(id => interaction.member.roles.cache.has(id)) || 
+                              config.idCargoStaff.some(id => interaction.member.roles.cache.has(id)) || 
+                              interaction.member.permissions.has(PermissionFlagsBits.Administrator);
         
-            // ==========================================
+            if (!temAcesso) {
+                return interaction.reply({ content: "❌ Apenas membros da Corregedoria ou Staff podem definir o veredicto deste caso.", ephemeral: true });
+            }
+
+            
             // BOTÃO: Iniciar o processo de fechamento do chamado
-            // ==========================================
             if (customId === 'btn_fechar_ticket') {
+                // Verifica se o usuário tem algum dos IDs das listas de Corregedor ou Staff, ou se é Administrador
                 const temAcesso = config.idCargoCorregedor.some(id => interaction.member.roles.cache.has(id)) || 
                                   config.idCargoStaff.some(id => interaction.member.roles.cache.has(id)) || 
                                   interaction.member.permissions.has(PermissionFlagsBits.Administrator);
-            
+
                 if (!temAcesso) {
                     return interaction.reply({ content: "❌ Apenas membros da Corregedoria ou Staff podem definir o veredicto deste caso.", ephemeral: true });
                 }
-        
+
                 const embedFiltro = new EmbedBuilder()
                     .setTitle("👤 SELEÇÃO DE ENVOLVIDOS")
                     .setDescription("Selecione abaixo o(s) usuário(s) que receberá(ão) o veredicto deste caso. Você pode marcar mais de um se necessário:")
                     .setColor(0x2f3136);
-        
+
                 const menuUsuarios = new UserSelectMenuBuilder()
                     .setCustomId('selecao_membros_caso')
                     .setPlaceholder('Clique aqui para selecionar os envolvidos...')
                     .setMinValues(1)
                     .setMaxValues(10);
-        
+
                 const rowUsuarios = new ActionRowBuilder().addComponents(menuUsuarios);
-        
+
                 return interaction.reply({ embeds: [embedFiltro], components: [rowUsuarios] });
             }
-        
-            // ==========================================
-            // BOTÃO: Veredicto Deferido (Abre seleção de advertências puxando do JSON)
-            // ==========================================
+
+           // BOTÃO: Veredicto Deferido (Abre seleção de advertências)
             if (customId === 'btn_final_deferido') {
                 const menuAdvs = new StringSelectMenuBuilder()
                     .setCustomId('menu_advertencias_multiplas')
                     .setPlaceholder('Selecione uma ou mais advertências...')
                     .setMinValues(1)
-                    .setMaxValues(config.opcoesPunicao.length)
+                    .setMaxValues(config.opcoesPunicao.length) // Ajusta dinamicamente o máximo para o total de opções no JSON
                     .addOptions(config.opcoesPunicao);
-        
+
                 const rowAdvs = new ActionRowBuilder().addComponents(menuAdvs);
                 return interaction.update({ content: '🚨 **Selecione as punições aplicáveis abaixo:**', embeds: [], components: [rowAdvs] });
             }
-    
-            // ==========================================
-            // BOTÃO: Veredicto Indeferido (Texto Elaborado + Transcript + Delete em 10s)
-            // ==========================================
+
+                        // BOTÃO: Veredicto Indeferido (Texto Elaborado + Transcript + Delete em 10s)
             if (customId === 'btn_final_indeferido') {
                 const dadosCaso = memoriaFechamento.get(channelId);
                 const canalResultados = guild.channels.cache.get(ID_CANAL_RESULTADOS);
@@ -109,7 +178,8 @@ module.exports = {
 
                 if (dadosCaso && canalResultados) {
                     const listaMencionados = dadosCaso.envolvidos.map(id => `<@${id}>`).join(', ');
-                
+
+                    // TEXTO ELABORADO DE INDEFERIMENTO (SEM EMBED)
                     const textoMensagemIndeferido = 
                         `### 🏛️ INDEFERIDO + #${numeroFinalDoCaso}\n` +
                         `> **STATUS JURÍDICO:** SENTENÇA INDEFERIDA (IMPROCEDENTE)\n\n` +
@@ -118,10 +188,11 @@ module.exports = {
                         `⚠️ **Fundamentação da Recusa:**\n` +
                         `A postulação não reuniu condições mínimas de admissibilidade, sendo rejeitada por **total ausência de elementos probatórios concretos** (falta de filmagens claras ou evidências inequívocas) ou por incompatibilidade técnica com o regimento disciplinar de condutas vigentes na cidade.\n\n` +
                         `✍️ *Relator Responsável:* \`${interaction.user.tag}\` — <t:${Math.floor(Date.now() / 1000)}:R>`;
-                
+
+                    // Envia o texto formatado diretamente no canal de resultados com a notificação
                     await canalResultados.send({ 
                         content: `🔔 **Notificação de Arquivamento:** ${listaMencionados}\n\n${textoMensagemIndeferido}` 
-                    }).catch(err => console.error(err));
+                    });
                 }
 
                 // GERADOR DE TRANSCRIPT PARA CASO INDEFERIDO
@@ -152,9 +223,7 @@ module.exports = {
                 return setTimeout(() => interaction.channel.delete().catch(() => {}), 10000);
             }
 
-            // ==========================================
-            // LÓGICA DE CRIAÇÃO DE NOVOS TICKETS PRIVADOS
-            // ==========================================
+            // --- LÓGICA DE CRIAÇÃO DE NOVOS TICKETS PRIVADOS ---
             let nomeCanal = "";
             let cargoAcessoId = "";
             let embedTicket = new EmbedBuilder();
@@ -162,7 +231,7 @@ module.exports = {
 
             if (customId === 'btn_corregedoria') {
                 nomeCanal = `⚖️-corregedoria-${user.username}`;
-                cargoAcessoId = config.idCargoCorregedor[0] || ""; // Pega o primeiro ID configurado na lista
+                cargoAcessoId = config.idCargoCorregedor || "";
                 mencaoCargo = cargoAcessoId ? `<@&${cargoAcessoId}>` : "@Corregedoria";
 
                 embedTicket
@@ -180,7 +249,7 @@ module.exports = {
 
             if (customId === 'btn_revogacao') {
                 nomeCanal = `📝-revogacao-${user.username}`;
-                cargoAcessoId = config.idCargoStaff[0] || ""; // Pega o primeiro ID configurado na lista
+                cargoAcessoId = config.idCargoStaff || "";
                 mencaoCargo = cargoAcessoId ? `<@&${cargoAcessoId}>` : "@Staff";
 
                 embedTicket
@@ -198,7 +267,7 @@ module.exports = {
                     { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels] }
                 ];
 
-                if (cargoAcessoId && (guild.roles.cache.has(cargoAcessoId) || await guild.roles.fetch(cargoAcessoId).catch(() => null))) {
+                if (cargoAcessoId && guild.roles.cache.has(cargoAcessoId)) {
                     regrasPermissao.push({ id: cargoAcessoId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] });
                 }
 
@@ -208,12 +277,11 @@ module.exports = {
                         type: 0,
                         parent: ID_CATEGORIA_TICKETS,
                         permissionOverwrites: regrasPermissao
-
                     });
 
-                                        await interaction.reply({ content: `✅ Seu canal administrativo foi aberto com sucesso em ${canalCriado}`, ephemeral: true });
+                    await interaction.reply({ content: `✅ Seu canal administrativo foi aberto com sucesso em ${canalCriado}`, ephemeral: true });
 
-                    const rowFechar = new ActionRowBuilder().addComponents(
+                                const rowFechar = new ActionRowBuilder().addComponents(
                         new ButtonBuilder().setCustomId('btn_fechar_ticket').setLabel('🔒 Fechar Ticket').setStyle(ButtonStyle.Secondary)
                     );
                     await canalCriado.send({ content: mencaoCargo, embeds: [embedTicket], components: [rowFechar] });
@@ -222,7 +290,7 @@ module.exports = {
                     await interaction.reply({ content: "❌ Erro: Verifique se o Bot possui a permissão de 'Gerenciar Canais' na categoria alvo.", ephemeral: true });
                 }
             }
-        } // FIM DO BLOCO DE BOTÕES (isButton)
+        }
 
         // --- 3. GERENCIAMENTO DE SELEÇÃO DE MENUS ---
         if (interaction.isAnySelectMenu()) {
@@ -245,7 +313,7 @@ module.exports = {
                 return interaction.update({ embeds: [embedEscolha], components: [rowEscolhas] });
             }
 
-            // Etapa 2: Processa a seleção múltipla de advertências, gera Transcript e deleta em 10s
+                        // Etapa 2: Processa a seleção múltipla de advertências, gera Transcript e deleta em 10s
             if (customId === 'menu_advertencias_multiplas') {
                 const dadosCaso = memoriaFechamento.get(channelId);
                 if (!dadosCaso) return interaction.reply({ content: "❌ Erro nas etapas de fechamento. Reabra o menu.", ephemeral: true });
@@ -263,6 +331,15 @@ module.exports = {
                 const ID_CARGO_GERAL_ADV = "13947740627062874"; 
                 const ID_CANAL_TRANSCRIPTS = "1565194110199930971";
 
+                const dicionarioAdvs = {
+                    "1394767862174060705": "Advertência Verbal (Vigência Obrigatória: 7 dias)",
+                    "1394767901218836521": "Advertência Escrita Nível 1 (Vigência obrigatória: 10 dias corridos)",
+                    "1394767944176631969": "Advertência Geral Nível 2 (Vigência obrigatória: 15 dias corridos)",
+                    "1511367174307188866": "Suspensão de Atividades Administrativas (Ficha sob análise técnica, sujeito a desligamento imediato)"
+                };
+
+                const textoAdvsMarcadas = values.map(id => `• ${dicionarioAdvs[id] || id}`).join('\n');
+
                 // 1. APLICAÇÃO DOS CARGOS INDIVIDUAIS NO DISCORD
                 for (const idMembro of dadosCaso.envolvidos) {
                     try {
@@ -270,7 +347,7 @@ module.exports = {
                         if (membroAlvo) {
                             // Seta o cargo de advertência geral
                             await membroAlvo.roles.add(ID_CARGO_GERAL_ADV).catch(() => {});
-                            
+
                             // Seta todos os cargos específicos selecionados no menu
                             for (const idCargoPunicao of values) {
                                 await membroAlvo.roles.add(idCargoPunicao).catch(() => {});
@@ -279,12 +356,12 @@ module.exports = {
                     } catch (err) {
                         console.error(`Falha ao setar cargos no membro ${idMembro}:`, err);
                     }
-                
-                    // Geração dinâmica das menções dos cargos
+
+                    // Geração dinâmica das menções dos cargos para evitar que o bot quebre se a variável antiga falhar
                     const cargosMencionadosString = values && values.length > 0 
                         ? values.map(id => `<@&${id}>`).join(', ') 
                         : `<@&${ID_CARGO_GERAL_ADV}>`;
-                
+
                     // 2. TEXTO ELABORADO DE DEFERIMENTO (SEM EMBED)
                     const textoMensagem = 
                         `### ⚖️ DEFERIDO + #${numeroFinalDoCaso}\n` +
@@ -294,15 +371,15 @@ module.exports = {
                         `⚠️ **Sanções Regimentais Aplicadas:**\n${cargosMencionadosString}\n\n` +
                         `*Determina-se a averbação imediata deste veredicto na ficha funcional do servidor. Notificação processual expedida.*\n\n` +
                         `✍️ *Relator Responsável:* \`${interaction.user.tag}\` — <t:${Math.floor(Date.now() / 1000)}:R>`;
-                
-                    // Envia o texto diretamente no canal de resultados
+
+                    // Envia o texto formatado diretamente no canal de resultados de forma segura
                     if (canalResultados) {
                         await canalResultados.send({ 
                             content: `🔔 **Citação Processual:** <@${idMembro}>\n\n${textoMensagem}` 
                         }).catch(err => console.error("Erro ao enviar para canalResultados:", err));
                     }
-                
-                    // 3. ENVIO DO FORMATO SIMPLIFICADO PARA O CANAL DE LOGS ESPECÍFICO
+
+                    // 3. ENVIO DO FORMATO SIMPLIFICADO PARA O CANAL DE LOGS ESPECÍFICO (PROTEGIDO)
                     try {
                         const canalLogsEspecifico = await guild.channels.fetch('1529134407330562239').catch(() => null);
                         if (canalLogsEspecifico) {
@@ -311,7 +388,7 @@ module.exports = {
                                 `**MOTIVO:** Caso corregedoria #${numeroFinalDoCaso}\n` +
                                 `**ADVERTÊNCIA APLICADA:** ${cargosMencionadosString}\n` +
                                 `**RESPONSÁVEL:** ${interaction.user}`;
-                
+
                             await canalLogsEspecifico.send({ content: textoLogSimplificado }).catch(err => console.error("Erro ao enviar mensagem de log:", err));
                         }
                     } catch (err) {
@@ -350,7 +427,7 @@ module.exports = {
                 memoriaFechamento.delete(channelId);
                 return setTimeout(() => interaction.channel.delete().catch(() => {}), 10000);
             }
+
         }
     },
 };
-
