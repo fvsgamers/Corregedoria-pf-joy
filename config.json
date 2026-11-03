@@ -1,37 +1,37 @@
 {
   "clientId": "1565123232133156914",
-  "guildId": "1394735325858762773",
+  "guildId": "1516662107188232275",
   
-  "idCargoCorregedor": ["1511368554648441013", "1511368314268418188", "1394761227858739431"],
+  "idCargoCorregedor": ["1516662107599409195", "1516662107599409194", "1516662107599409193","1516662107586953233","1516662107570180118"],
   
-  "idCargoStaff": ["1511368314268418188"],
+  "idCargoStaff": ["1516662107599409195"],
    
   "opcoesPunicao": [
     { 
-      "label": "Advertência Verbal", 
-      "description": "Aplicação de aviso verbal regulamentar.", 
-      "value": "1394767862174060705",
-      "emoji": "💬",
+      "label": "Aluno 1 Semana", 
+      "description": "Rebaixamento de Cargo para Aluno.", 
+      "value": "1516662107188232280",
+      "emoji": "👨🏻‍🎓",
       "tempo": "Vigência de 7 dias" 
     },
     { 
-      "label": "Advertência Escrita Nível 1", 
-      "description": "Primeiro aviso formal registrado em ficha funcional.", 
-      "value": "1394767901218836521",
+      "label": "Advertência Verbal", 
+      "description": "Advertência Verbal.", 
+      "value": "1516662107188232279",
       "emoji": "📝",
       "tempo": "Vigência de 10 dias"
     },
     { 
-      "label": "Advertência Geral Nível 2", 
-      "description": "Sanção por reincidência formal de conduta.", 
-      "value": "1394767944176631969",
+      "label": "Advertência Geral Nível 1", 
+      "description": "Sanção por falta de conduta.", 
+      "value": "1516662107188232278",
       "emoji": "⚠️",
       "tempo": "Vigência de 15 dias"
     },
     { 
       "label": "Suspensão Administrativa", 
-      "description": "Afastamento imediato e temporário das funções.", 
-      "value": "1511367174307188866",
+      "description": "Afastamento imediato e/ou temporário das funções.", 
+      "value": "1516662107188232277",
       "emoji": "🚫",
       "tempo": "Ficha sob análise técnica / Sujeito a Desligamento"
     }
