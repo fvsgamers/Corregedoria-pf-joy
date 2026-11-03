@@ -51,49 +51,56 @@ module.exports = {
                 // ==========================================
                 // BOTÃO: Iniciar o processo de fechamento do chamado
                 // ==========================================
-                if (customId === 'btn_fechar_ticket') {
-                    // Verifica se o usuário tem algum dos IDs das listas de Corregedor ou Staff, ou se é Administrador
-                    const temAcesso = config.idCargoCorregedor.some(id => interaction.member.roles.cache.has(id)) || 
-                                      config.idCargoStaff.some(id => interaction.member.roles.cache.has(id)) || 
-                                      interaction.member.permissions.has(PermissionFlagsBits.Administrator);
-                
-                    if (!temAcesso) {
-                        return interaction.reply({ content: "❌ Apenas membros da Corregedoria ou Staff podem definir o veredicto deste caso.", ephemeral: true });
-                    }
+                       // --- 2. INTERAÇÃO COM BOTÕES ---
+        if (interaction.isButton()) {
+            const { guild, user, customId, channelId } = interaction;
+        
+            // ==========================================
+            // BOTÃO: Iniciar o processo de fechamento do chamado
+            // ==========================================
+            if (customId === 'btn_fechar_ticket') {
+                const temAcesso = config.idCargoCorregedor.some(id => interaction.member.roles.cache.has(id)) || 
+                                  config.idCargoStaff.some(id => interaction.member.roles.cache.has(id)) || 
+                                  interaction.member.permissions.has(PermissionFlagsBits.Administrator);
             
-                    const embedFiltro = new EmbedBuilder()
-                        .setTitle("👤 SELEÇÃO DE ENVOLVIDOS")
-                        .setDescription("Selecione abaixo o(s) usuário(s) que receberá(ão) o veredicto deste caso. Você pode marcar mais de um se necessário:")
-                        .setColor(0x2f3136);
-            
-                    const menuUsuarios = new UserSelectMenuBuilder()
-                        .setCustomId('selecao_membros_caso')
-                        .setPlaceholder('Clique aqui para selecionar os envolvidos...')
-                        .setMinValues(1)
-                        .setMaxValues(10);
-            
-                    const rowUsuarios = new ActionRowBuilder().addComponents(menuUsuarios);
-            
-                    return interaction.reply({ embeds: [embedFiltro], components: [rowUsuarios] });
+                if (!temAcesso) {
+                    return interaction.reply({ content: "❌ Apenas membros da Corregedoria ou Staff podem definir o veredicto deste caso.", ephemeral: true });
                 }
-            
-                // ==========================================
-                // BOTÃO: Veredicto Deferido (Abre seleção de advertências puxando do JSON)
-                // ==========================================
-                if (customId === 'btn_final_deferido') {
-                    const menuAdvs = new StringSelectMenuBuilder()
-                        .setCustomId('menu_advertencias_multiplas')
-                        .setPlaceholder('Selecione uma ou mais advertências...')
-                        .setMinValues(1)
-                        .setMaxValues(config.opcoesPunicao.length)
-                        .addOptions(config.opcoesPunicao);
-            
-                    const rowAdvs = new ActionRowBuilder().addComponents(menuAdvs);
-                    return interaction.update({ content: '🚨 **Selecione as punições aplicáveis abaixo:**', embeds: [], components: [rowAdvs] });
-                }
+        
+                const embedFiltro = new EmbedBuilder()
+                    .setTitle("👤 SELEÇÃO DE ENVOLVIDOS")
+                    .setDescription("Selecione abaixo o(s) usuário(s) que receberá(ão) o veredicto deste caso. Você pode marcar mais de um se necessário:")
+                    .setColor(0x2f3136);
+        
+                const menuUsuarios = new UserSelectMenuBuilder()
+                    .setCustomId('selecao_membros_caso')
+                    .setPlaceholder('Clique aqui para selecionar os envolvidos...')
+                    .setMinValues(1)
+                    .setMaxValues(10);
+        
+                const rowUsuarios = new ActionRowBuilder().addComponents(menuUsuarios);
+        
+                return interaction.reply({ embeds: [embedFiltro], components: [rowUsuarios] });
+            }
+        
+            // ==========================================
+            // BOTÃO: Veredicto Deferido (Abre seleção de advertências puxando do JSON)
+            // ==========================================
+            if (customId === 'btn_final_deferido') {
+                const menuAdvs = new StringSelectMenuBuilder()
+                    .setCustomId('menu_advertencias_multiplas')
+                    .setPlaceholder('Selecione uma ou mais advertências...')
+                    .setMinValues(1)
+                    .setMaxValues(config.opcoesPunicao.length)
+                    .addOptions(config.opcoesPunicao);
+        
+                const rowAdvs = new ActionRowBuilder().addComponents(menuAdvs);
+                return interaction.update({ content: '🚨 **Selecione as punições aplicáveis abaixo:**', embeds: [], components: [rowAdvs] });
             }
     
-        // BOTÃO: Veredicto Indeferido (Texto Elaborado + Transcript + Delete em 10s)
+            // ==========================================
+            // BOTÃO: Veredicto Indeferido (Texto Elaborado + Transcript + Delete em 10s)
+            // ==========================================
             if (customId === 'btn_final_indeferido') {
                 const dadosCaso = memoriaFechamento.get(channelId);
                 const canalResultados = guild.channels.cache.get(ID_CANAL_RESULTADOS);
@@ -103,7 +110,6 @@ module.exports = {
                 if (dadosCaso && canalResultados) {
                     const listaMencionados = dadosCaso.envolvidos.map(id => `<@${id}>`).join(', ');
                 
-                    // TEXTO ELABORADO DE INDEFERIMENTO (SEM EMBED)
                     const textoMensagemIndeferido = 
                         `### 🏛️ INDEFERIDO + #${numeroFinalDoCaso}\n` +
                         `> **STATUS JURÍDICO:** SENTENÇA INDEFERIDA (IMPROCEDENTE)\n\n` +
@@ -113,10 +119,9 @@ module.exports = {
                         `A postulação não reuniu condições mínimas de admissibilidade, sendo rejeitada por **total ausência de elementos probatórios concretos** (falta de filmagens claras ou evidências inequívocas) ou por incompatibilidade técnica com o regimento disciplinar de condutas vigentes na cidade.\n\n` +
                         `✍️ *Relator Responsável:* \`${interaction.user.tag}\` — <t:${Math.floor(Date.now() / 1000)}:R>`;
                 
-                    // Envia o texto formatado diretamente no canal de resultados com a notificação
                     await canalResultados.send({ 
                         content: `🔔 **Notificação de Arquivamento:** ${listaMencionados}\n\n${textoMensagemIndeferido}` 
-                    });
+                    }).catch(err => console.error(err));
                 }
 
                 // GERADOR DE TRANSCRIPT PARA CASO INDEFERIDO
@@ -147,7 +152,9 @@ module.exports = {
                 return setTimeout(() => interaction.channel.delete().catch(() => {}), 10000);
             }
 
-            // --- LÓGICA DE CRIAÇÃO DE NOVOS TICKETS PRIVADOS ---
+            // ==========================================
+            // LÓGICA DE CRIAÇÃO DE NOVOS TICKETS PRIVADOS
+            // ==========================================
             let nomeCanal = "";
             let cargoAcessoId = "";
             let embedTicket = new EmbedBuilder();
@@ -155,7 +162,7 @@ module.exports = {
 
             if (customId === 'btn_corregedoria') {
                 nomeCanal = `⚖️-corregedoria-${user.username}`;
-                cargoAcessoId = config.idCargoCorregedor || "";
+                cargoAcessoId = config.idCargoCorregedor[0] || ""; // Pega o primeiro ID configurado na lista
                 mencaoCargo = cargoAcessoId ? `<@&${cargoAcessoId}>` : "@Corregedoria";
 
                 embedTicket
@@ -173,7 +180,7 @@ module.exports = {
 
             if (customId === 'btn_revogacao') {
                 nomeCanal = `📝-revogacao-${user.username}`;
-                cargoAcessoId = config.idCargoStaff || "";
+                cargoAcessoId = config.idCargoStaff[0] || ""; // Pega o primeiro ID configurado na lista
                 mencaoCargo = cargoAcessoId ? `<@&${cargoAcessoId}>` : "@Staff";
 
                 embedTicket
@@ -191,7 +198,7 @@ module.exports = {
                     { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels] }
                 ];
 
-                if (cargoAcessoId && guild.roles.cache.has(cargoAcessoId)) {
+                if (cargoAcessoId && (guild.roles.cache.has(cargoAcessoId) || await guild.roles.fetch(cargoAcessoId).catch(() => null))) {
                     regrasPermissao.push({ id: cargoAcessoId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] });
                 }
 
@@ -201,6 +208,7 @@ module.exports = {
                         type: 0,
                         parent: ID_CATEGORIA_TICKETS,
                         permissionOverwrites: regrasPermissao
+
                     });
 
                     await interaction.reply({ content: `✅ Seu canal administrativo foi aberto com sucesso em ${canalCriado}`, ephemeral: true });
