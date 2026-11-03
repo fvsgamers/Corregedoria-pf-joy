@@ -238,46 +238,57 @@ module.exports = {
                         // =====================================================================
             // ⚖️ ENCAIXE: MENU DE SELEÇÃO PARA CITAR PARTICIPANTES DA DEFESA
             // =====================================================================
+                        // =====================================================================
+            // ⚖️ TRATAMENTO ATUALIZADO: MENU DE SELEÇÃO PARA CITAR PARTICIPANTES
+            // =====================================================================
             if (customId === 'citar_participantes') {
-                // IDs dos cargos autorizados (Substitua pelos IDs reais da sua Corregedoria)
+                // 1. Avisa o Discord que o bot está processando para NÃO dar erro de tempo
+                await interaction.deferReply().catch(() => {});
+
+                // IDs dos cargos autorizados do config
                 const CARGOS_PERMITIDOS_IDS = config.idCargoCorregedor || []; 
                 
-                // Verificação de segurança (Verifica por ID no config ou se tem o nome do cargo)
+                // Verificação de segurança (Verifica por ID ou se tem o nome do cargo)
                 const temPermissao = interaction.member.roles.cache.some(role => 
                     CARGOS_PERMITIDOS_IDS.includes(role.id) || 
                     role.name.toLowerCase() === 'corregedoria' || 
                     role.name.toLowerCase() === 'admin'
                 ) || interaction.member.permissions.has(PermissionFlagsBits.Administrator);
 
-                // Se não for Corregedor ou Admin, bloqueia
+                // Se não for Corregedor ou Admin, bloqueia usando editReply
                 if (!temPermissao) {
-                    return await interaction.reply({
-                        content: `❌ Apenas membros da **Corregedoria** ou **Administradores** podem adicionar participantes a este ticket.`,
-                        ephemeral: true
+                    return await interaction.editReply({
+                        content: `❌ Apenas membros da **Corregedoria** ou **Administradores** podem adicionar participantes a este ticket.`
                     });
                 }
 
-                // Coleta os usuários selecionados e cria as menções dinâmicas clicáveis
+                // Coleta os usuários selecionados
                 const usuariosSelecionados = interaction.users;
                 const mencoes = usuariosSelecionados.map(user => `<@${user.id}>`).join(', ');
 
-                // Adiciona permissão para cada um conseguir ver e digitar no canal do ticket
-                for (const [id, user] of usuariosSelecionados) {
-                    await interaction.channel.permissionOverwrites.create(id, {
-                        ViewChannel: true,
-                        SendMessages: true,
-                        ReadMessageHistory: true
-                    }).catch(err => console.error(`Erro ao dar permissão ao usuário ${id}:`, err));
+                // Adiciona permissão para cada um conseguir ver e digitar no canal do ticket de forma assíncrona segura
+                try {
+                    for (const [id, user] of usuariosSelecionados) {
+                        await interaction.channel.permissionOverwrites.create(id, {
+                            ViewChannel: true,
+                            SendMessages: true,
+                            ReadMessageHistory: true
+                        }).catch(err => console.error(`Erro ao dar permissão ao usuário ${id}:`, err));
+                    }
+                } catch (error) {
+                    console.error("Erro ao aplicar as permissões do canal:", error);
                 }
 
                 const timestamp = Math.floor(Date.now() / 1000);
                 
-                // Envia a convocação formal no chat do ticket
-                return await interaction.reply({
+                // Envia a convocação formal usando editReply para concluir a interação pendente
+                return await interaction.editReply({
                     content: `✍️ *Participante(s) Convocado(s):* ${mencoes} — por <@${interaction.user.id}> em <t:${timestamp}:R>\n\n` +
                              `⚠️ **Prezado(a)(s), você foi citado nesta corregedoria.** Fica por meio deste ato convocado(a) a apresentar sua defesa legal mediante os fatos e evidências apresentados na denúncia deste ticket.`
                 });
             }
+            // =====================================================================
+
             // =====================================================================
 
             const { customId, values, channelId, guild } = interaction;
