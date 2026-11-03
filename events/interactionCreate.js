@@ -48,9 +48,9 @@ module.exports = {
         // --- 2. INTERAÇÃO COM BOTÕES ---
         if (interaction.isButton()) {
             const { guild, user, customId, channelId } = interaction;
+            
             // BOTÃO: Iniciar o processo de fechamento do chamado
             if (customId === 'btn_fechar_ticket') {
-                // Verifica se o usuário tem algum dos IDs das listas de Corregedor ou Staff, ou se é Administrador
                 const temAcesso = config.idCargoCorregedor.some(id => interaction.member.roles.cache.has(id)) || 
                                   config.idCargoStaff.some(id => interaction.member.roles.cache.has(id)) || 
                                   interaction.member.permissions.has(PermissionFlagsBits.Administrator);
@@ -75,33 +75,25 @@ module.exports = {
                 return interaction.reply({ embeds: [embedFiltro], components: [rowUsuarios] });
             }
 
-           // BOTÃO: Veredicto Deferido (Abre seleção de advertências)
+            // BOTÃO: Veredicto Deferido (Abre seleção de advertências)
             if (customId === 'btn_final_deferido') {
                 const menuAdvs = new StringSelectMenuBuilder()
                     .setCustomId('menu_advertencias_multiplas')
                     .setPlaceholder('Selecione uma ou mais advertências...')
                     .setMinValues(1)
-                    .setMaxValues(config.opcoesPunicao.length) // Ajusta dinamicamente o máximo para o total de opções no JSON
+                    .setMaxValues(config.opcoesPunicao.length)
                     .addOptions(config.opcoesPunicao);
 
                 const rowAdvs = new ActionRowBuilder().addComponents(menuAdvs);
                 return interaction.update({ content: '🚨 **Selecione as punições aplicáveis abaixo:**', embeds: [], components: [rowAdvs] });
             }
-                        // =====================================================================
-            // 🔒 RETORNO AO ORIGINAL: VEREDICTO INDEFERIDO SEGURADO
-            // =====================================================================
+
+            // BOTÃO: Veredicto Indeferido (Texto Elaborado + Transcript + Delete em 10s)
             if (customId === 'btn_final_indeferido') {
                 const dadosCaso = memoriaFechamento.get(channelId);
                 const canalResultados = guild.channels.cache.get(ID_CANAL_RESULTADOS);
                 const numeroFinalDoCaso = obterProximoCaso();
                 const ID_CANAL_TRANSCRIPTS = "1565194110199930971";
-
-                // Atualiza visualmente o canal na hora para o usuário ver que funcionou
-                await interaction.update({ 
-                    content: `🔒 **Caso Indeferido com Sucesso!** Publicando resultados e gerando relatórios...\n⚠️ *Este canal será permanentemente deletado em 10 segundos.*`, 
-                    embeds: [], 
-                    components: [] 
-                }).catch(() => {});
 
                 if (dadosCaso && canalResultados) {
                     const listaMencionados = dadosCaso.envolvidos.map(id => `<@${id}>`).join(', ');
@@ -117,10 +109,9 @@ module.exports = {
 
                     await canalResultados.send({ 
                         content: `🔔 **Notificação de Arquivamento:** ${listaMencionados}\n\n${textoMensagemIndeferido}` 
-                    }).catch(err => console.error("Erro canal resultados:", err));
+                    });
                 }
 
-                // Gerador de Transcript roda em segundo plano sem travar o botão
                 try {
                     const mensagens = await interaction.channel.messages.fetch({ limit: 100 });
                     let conteudoTexto = `=== TRANSCRIPT OFICIAL DE ATENDIMENTO - CASO INDEFERIDO #${numeroFinalDoCaso} ===\n`;
@@ -139,14 +130,14 @@ module.exports = {
                         await canalAuditoria.send({ 
                             content: `📁 **Histórico de Arquivamento:** Caso \`#${numeroFinalDoCaso}\` arquivado/indeferido por ${interaction.user}.`,
                             files: [{ attachment: bufferTexto, name: nomeArquivo }]
-                        }).catch(err => console.error("Erro envio transcript:", err));
+                        });
                     }
-                } catch (e) { console.error("Erro transcript:", e); }
+                } catch (e) { console.error(e); }
 
+                await interaction.update({ content: `🔒 **Caso Indeferido com Sucesso!** Relatório gerado e enviado para a auditoria.\n⚠️ *Este canal será permanentemente deletado em 10 segundos.*`, embeds: [], components: [] });
                 memoriaFechamento.delete(channelId);
                 return setTimeout(() => interaction.channel.delete().catch(() => {}), 10000);
             }
-
 
             // --- LÓGICA DE CRIAÇÃO DE NOVOS TICKETS PRIVADOS ---
             let nomeCanal = "";
@@ -181,11 +172,11 @@ module.exports = {
                     .setTitle("📝 DEPARTAMENTO DE REVISÃO E REVOGAÇÃO")
                     .setDescription(`Olá ${user},\n\nEste canal foi aberto para apresentar sua contestação formal de punições aplicadas no servidor.\n\nPreencha a sua ficha de defesa abaixo:`)
                     .addFields({ name: '📋 Ficha de Contestação', value: `• **Seu Passaporte (ID):**\n• **Qual punição deseja revogar?**\n• **Quem aplicou a punição?**\n• **Sua Justificativa/Defesa:**` })
-                    .setColor(0x0000ff)
+                                        .setColor(0x0000ff)
                     .setTimestamp();
             }
 
-            if (nomeCanal)             if (nomeCanal) {
+            if (nomeCanal) {
                 const regrasPermissao = [
                     { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
                     { id: user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles] },
@@ -206,13 +197,14 @@ module.exports = {
 
                     await interaction.reply({ content: `✅ Seu canal administrativo foi aberto com sucesso em ${canalCriado}`, ephemeral: true });
 
-                    // 1. Linha com o botão original de fechar ticket
+                    // Linha 1: Botão de fechar nativo e limpo
                     const rowFechar = new ActionRowBuilder().addComponents(
                         new ButtonBuilder().setCustomId('btn_fechar_ticket').setLabel('🔒 Fechar Ticket').setStyle(ButtonStyle.Secondary)
                     );
 
-                    // 2. Condicional para incluir o menu APENAS nos canais de corregedoria
                     const componentesEnvio = [rowFechar];
+
+                    // Linha 2: O menu de citar para defesa só entra se for o canal da corregedoria
                     if (customId === 'btn_corregedoria') {
                         const rowMenuCitar = new ActionRowBuilder().addComponents(
                             new UserSelectMenuBuilder()
@@ -224,71 +216,53 @@ module.exports = {
                         componentesEnvio.push(rowMenuCitar);
                     }
 
-                    // Envia a mensagem com a embed vermelha/azul e os componentes ajustados sem duplicações
-                    await canalCriado.send({ 
-                        content: mencaoCargo, 
-                        embeds: [embedTicket], 
-                        components: componentesEnvio 
-                    });
-
+                    await canalCriado.send({ content: mencaoCargo, embeds: [embedTicket], components: componentesEnvio });
                 } catch (error) {
                     console.error("Erro ao criar canal na categoria:", error);
                     await interaction.reply({ content: "❌ Erro: Verifique se o Bot possui a permissão de 'Gerenciar Canais' na categoria alvo.", ephemeral: true });
                 }
             }
-
         }
 
         // --- 3. GERENCIAMENTO DE SELEÇÃO DE MENUS ---
         if (interaction.isAnySelectMenu()) {
-                        // =====================================================================
-            // ⚖️ ENCAIXE: MENU DE SELEÇÃO PARA CITAR PARTICIPANTES DA DEFESA
-                        // =====================================================================
-            // ⚖️ TRATAMENTO SEGURO: MENU DE SELEÇÃO PARA CITAR PARTICIPANTES
-            // =====================================================================
-            if (customId === 'citar_participantes') {
-                // Verificação direta por nome para evitar falhas de leitura do config
-                const temPermissao = interaction.member.roles.cache.some(role => 
-                    role.name.toLowerCase() === 'corregedoria' || 
-                    role.name.toLowerCase() === 'admin'
-                ) || interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+            const { customId, values, channelId, guild } = interaction;
 
-                // Bloqueio imediato se não for da equipe
+            // MENU: Citar/Convocar envolvidos para a Defesa Legal
+            if (customId === 'citar_participantes') {
+                const temPermissao = config.idCargoCorregedor.some(id => interaction.member.roles.cache.has(id)) || 
+                                  interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+
                 if (!temPermissao) {
                     return await interaction.reply({
                         content: `❌ Apenas membros da **Corregedoria** ou **Administradores** podem adicionar participantes a este ticket.`,
                         ephemeral: true
-                    }).catch(() => {});
+                    });
                 }
 
-                // Dá a resposta imediata para o Discord não derrubar a conexão por tempo
-                await interaction.reply({ content: `🔄 Processando permissões e enviando a convocação...`, ephemeral: true }).catch(() => {});
+                // Resposta imediata para blindar contra o erro de tempo (Timeout) do Discord
+                await interaction.reply({ content: `🔄 Processando permissões e aplicando acessos...`, ephemeral: true });
 
                 const usuariosSelecionados = interaction.users;
                 const mencoes = usuariosSelecionados.map(user => `<@${user.id}>`).join(', ');
 
-                // Altera as permissões em segundo plano
                 for (const [id, user] of usuariosSelecionados) {
                     await interaction.channel.permissionOverwrites.create(id, {
                         ViewChannel: true,
                         SendMessages: true,
                         ReadMessageHistory: true
-                    }).catch(err => console.error(`Erro permissão:`, err));
+                    }).catch(err => console.error(err));
                 }
 
                 const timestamp = Math.floor(Date.now() / 1000);
                 
-                // Envia a convocação em texto aberto no canal
                 return await interaction.channel.send({
                     content: `✍️ *Participante(s) Convocado(s):* ${mencoes} — por <@${interaction.user.id}> em <t:${timestamp}:R>\n\n` +
                              `⚠️ **Prezado(a)(s), você foi citado nesta corregedoria.** Fica por meio deste ato convocado(a) a apresentar sua defesa legal mediante os fatos e evidências apresentados na denúncia deste ticket.`
-                }).catch(err => console.error("Erro ao enviar texto no canal:", err));
+                });
             }
-            // =====================================================================
 
-            const { customId, values, channelId, guild } = interaction;
-
-            // Etapa 1: Captura envolvidos marcados
+            // Etapa 1: Captura envolvidos marcados ao fechar ticket
             if (customId === 'selecao_membros_caso') {
                 memoriaFechamento.set(channelId, { envolvidos: values });
 
@@ -305,7 +279,7 @@ module.exports = {
                 return interaction.update({ embeds: [embedEscolha], components: [rowEscolhas] });
             }
 
-                        // Etapa 2: Processa a seleção múltipla de advertências, gera Transcript e deleta em 10s
+            // Etapa 2: Processa a seleção múltipla de advertências, gera Transcript e deleta em 10s
             if (customId === 'menu_advertencias_multiplas') {
                 const dadosCaso = memoriaFechamento.get(channelId);
                 if (!dadosCaso) return interaction.reply({ content: "❌ Erro nas etapas de fechamento. Reabra o menu.", ephemeral: true });
@@ -330,17 +304,11 @@ module.exports = {
                     "1511367174307188866": "Suspensão de Atividades Administrativas (Ficha sob análise técnica, sujeito a desligamento imediato)"
                 };
 
-                const textoAdvsMarcadas = values.map(id => `• ${dicionarioAdvs[id] || id}`).join('\n');
-
-                // 1. APLICAÇÃO DOS CARGOS INDIVIDUAIS NO DISCORD
                 for (const idMembro of dadosCaso.envolvidos) {
                     try {
                         const membroAlvo = await guild.members.fetch(idMembro).catch(() => null);
                         if (membroAlvo) {
-                            // Seta o cargo de advertência geral
                             await membroAlvo.roles.add(ID_CARGO_GERAL_ADV).catch(() => {});
-
-                            // Seta todos os cargos específicos selecionados no menu
                             for (const idCargoPunicao of values) {
                                 await membroAlvo.roles.add(idCargoPunicao).catch(() => {});
                             }
@@ -349,12 +317,10 @@ module.exports = {
                         console.error(`Falha ao setar cargos no membro ${idMembro}:`, err);
                     }
 
-                    // Geração dinâmica das menções dos cargos para evitar que o bot quebre se a variável antiga falhar
                     const cargosMencionadosString = values && values.length > 0 
                         ? values.map(id => `<@&${id}>`).join(', ') 
                         : `<@&${ID_CARGO_GERAL_ADV}>`;
 
-                    // Puxa dinamicamente do config.json os tempos dos cargos que foram selecionados pelo corregedor
                     const temposAdvsMarcadas = values && values.length > 0
                         ? values.map(id => {
                             const configPunicao = config.opcoesPunicao.find(o => o.value === id);
@@ -362,7 +328,6 @@ module.exports = {
                           }).filter(t => t !== '').join('\n')
                         : `• <@&${ID_CARGO_GERAL_ADV}>: *Tempo padrão do regimento*`;
 
-                    // 2. TEXTO ELABORADO DE DEFERIMENTO (SEM EMBED)
                     const textoMensagem = 
                         `### ⚖️ DEFERIDO + #${numeroFinalDoCaso}\n` +
                         `> **STATUS JURÍDICO:** SENTENÇA DEFERIDA (PROCEDENTE)\n\n` +
@@ -370,16 +335,14 @@ module.exports = {
                         `👤 **Infrator Penalizado:** <@${idMembro}>\n\n` +
                         `⚠️ **Sanções Regimentais Aplicadas:**\n${cargosMencionadosString}\n\n` +
                         `*Determina-se a averbação imediata deste veredicto na ficha funcional do servidor. Notificação processual expedida.*\n\n` +
-                        `✍️ *Relator Responsável:* <@${interaction.user.id}> — <t:${Math.floor(Date.now() / 1000)}:R>`;
+                        `✍️ *Relator Responsible:* <@${interaction.user.id}> — <t:${Math.floor(Date.now() / 1000)}:R>`;
 
-                    // Envia o texto formatado diretamente no canal de resultados de forma segura
                     if (canalResultados) {
                         await canalResultados.send({ 
                             content: `🔔 **Citação Processual:** <@${idMembro}>\n\n${textoMensagem}` 
-                        }).catch(err => console.error("Erro ao enviar para canalResultados:", err));
+                                                                    }).catch(err => console.error(err));
                     }
 
-                    // 3. ENVIO DO FORMATO SIMPLIFICADO PARA O CANAL DE LOGS ESPECÍFICO (PROTEGIDO)
                     try {
                         const canalLogsEspecifico = await guild.channels.fetch('1529134407330562239').catch(() => null);
                         if (canalLogsEspecifico) {
@@ -390,14 +353,11 @@ module.exports = {
                                 `**TEMPO DE VIGÊNCIA:** ${temposAdvsMarcadas}\n` +
                                 `**RESPONSÁVEL:** <@${interaction.user.id}>`;
 
-                            await canalLogsEspecifico.send({ content: textoLogSimplificado }).catch(err => console.error("Erro ao enviar mensagem de log:", err));
+                            await canalLogsEspecifico.send({ content: textoLogSimplificado }).catch(err => console.error(err));
                         }
-                    } catch (err) {
-                        console.error("Erro ao processar canal de logs específico:", err);
-                    }
+                    } catch (err) { console.error(err); }
                 }
 
-                // 3. GERADOR NATIVO DE TRANSCRIPT (EXPORTAÇÃO DE CONVERSA)
                 try {
                     const mensagens = await interaction.channel.messages.fetch({ limit: 100 });
                     let conteudoTexto = `=== TRANSCRIPT OFICIAL DE ATENDIMENTO - CASO #${numeroFinalDoCaso} ===\n`;
@@ -406,7 +366,6 @@ module.exports = {
                     const msgOrdenadas = mensagens.reverse();
                     msgOrdenadas.forEach(m => {
                         conteudoTexto += `[${m.createdAt.toLocaleTimeString('pt-BR')}] ${m.author.tag}: ${m.content}\n`;
-                        if (m.embeds.length > 0) conteudoTexto += `↳ [Contém Embed de Sistema]\n`;
                     });
 
                     const nomeArquivo = `transcript-caso-${numeroFinalDoCaso}.txt`;
@@ -419,16 +378,13 @@ module.exports = {
                             files: [{ attachment: bufferTexto, name: nomeArquivo }]
                         });
                     }
-                } catch (errTranscript) {
-                    console.error("Erro ao gerar ou enviar o transcript:", errTranscript);
-                }
+                } catch (errTranscript) { console.error(errTranscript); }
 
-                // 4. DELETAR EM 10 SEGUNDOS CRONOMETRADOS
                 await interaction.update({ content: `🔒 **Caso Deferido com Sucesso!** Veredicto publicado, cargos aplicados e histórico salvo.\n⚠️ *Este canal será permanentemente deletado em 10 segundos.*`, embeds: [], components: [] });
                 memoriaFechamento.delete(channelId);
                 return setTimeout(() => interaction.channel.delete().catch(() => {}), 10000);
             }
-
         }
     },
 };
+
